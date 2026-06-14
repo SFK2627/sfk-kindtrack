@@ -1310,3 +1310,43 @@ select {
   }
 }
 
+
+
+/* =========================
+   CLICKABLE SUMMARY STUDENTS
+========================= */
+
+.summary-student-link {
+  width: 100%;
+  display: block;
+  text-align: left;
+  background: rgba(255,255,255,.72);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: .18s ease;
+}
+
+.summary-student-link:hover {
+  transform: translateY(-2px);
+  border-color: var(--yellow);
+  background: #fff7c7;
+  box-shadow: 0 8px 18px rgba(0,0,0,.08);
+}
+
+.summary-student-link strong {
+  display: block;
+  font-size: .95rem;
+  margin-bottom: 3px;
+}
+
+.summary-student-link small {
+  display: block;
+}
+
+@media (max-width: 650px) {
+  .summary-student-link {
+    padding: 11px 12px;
+  }
+}

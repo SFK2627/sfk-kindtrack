@@ -539,6 +539,7 @@ function renderTermSummary() {
 
   const topStudents = [...students]
     .map(student => ({
+      id: student.id,
       name: student.name,
       total: getVisibleViolations(student).length,
       status: getStudentStatus(student)
@@ -590,8 +591,14 @@ function renderTermSummary() {
         topStudents.length
           ? `<ol>${topStudents.map(student => `
               <li>
-                <strong>${student.name}</strong>
-                <small>${student.total} record(s) • ${student.status.icon} ${student.status.label}</small>
+                <button
+                  type="button"
+                  class="summary-student-link"
+                  onclick="selectStudentFromSummary('${student.id}')"
+                >
+                  <strong>${student.name}</strong>
+                  <small>${student.total} record(s) • ${student.status.icon} ${student.status.label}</small>
+                </button>
               </li>
             `).join("")}</ol>`
           : `<small>No student records for this term.</small>`
@@ -608,6 +615,32 @@ function renderTermSummary() {
       </div>
     </div>
   `;
+}
+
+function selectStudentFromSummary(studentId) {
+  const student = students.find(item => item.id === studentId);
+
+  if (!student) {
+    showToast("Student record not found.");
+    return;
+  }
+
+  selectedStudent = student;
+  renderStudents();
+  renderStudentDetails();
+
+  if (termSummaryModal) {
+    termSummaryModal.classList.add("hidden");
+  }
+
+  const detailsPanel = document.querySelector(".details-panel");
+
+  if (detailsPanel) {
+    detailsPanel.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+  }
 }
 
 function renderDashboard() {
