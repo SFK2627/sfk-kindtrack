@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SFK KindTrack</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<section id="accessScreen" class="access-screen">
+  <div class="access-card">
+    <div class="access-logo">🐨</div>
+    <h1>SFK KindTrack</h1>
+    <p>Choose how you want to open the system.</p>
+
+    <div class="access-actions">
+      <button type="button" id="viewOnlyBtn">View Only</button>
+      <button type="button" id="showAdminLoginBtn">Admin Login</button>
+    </div>
+
+    <form id="adminLoginForm" class="admin-login hidden">
+      <input
+        type="password"
+        id="adminPasscode"
+        placeholder="Enter admin passcode"
+        autocomplete="off"
+      />
+      <button type="submit">Open Admin</button>
+    </form>
+
+    <p id="accessMessage" class="access-message"></p>
+  </div>
+</section>
+
+<div id="appRoot" class="app-root hidden">
+
+<header>
+  <div>
+    <div class="app-badge">🐨 SFK KindTrack</div>
+    <h1>Responsibility & Violation Viewer</h1>
+    <p class="tagline">Track with fairness. Guide with kindness.</p>
+    <p class="bekind">#BeKind</p>
+  </div>
+
+  <button id="feeToggle" class="admin-only">Hide Fees</button>
+</header>
+
+
+<section class="mode-bar">
+  <div>
+    <strong id="modeLabel">View Only Mode</strong>
+    <span id="modeDescription">Records are viewable. Editing tools are locked.</span>
+  </div>
+  <button type="button" id="logoutAccessBtn">Switch Mode</button>
+</section>
+
+<section class="dashboard">
+  <div>📌 Total Violations <b id="totalViolations">0</b></div>
+  <div>⚠️ Students with Alerts <b id="alertCount">0</b></div>
+  <div class="fee-info">💰 Total Fees <b id="totalFees">₱0</b></div>
+  <div class="fee-info">✅ Collected Funds <b id="collectedFees">₱0</b></div>
+</section>
+
+<section class="term-panel">
+  <div>
+    <strong>Viewing Records</strong>
+    <span id="currentTermLabel">All Terms</span>
+  </div>
+
+  <select id="termFilter">
+    <option value="all">All Terms</option>
+    <option value="term1">1st Term: Jun 1 – Sep 9</option>
+    <option value="term2">2nd Term: Sep 10 – Dec 15</option>
+    <option value="term3">3rd Term: Jan 4 – Apr 3</option>
+  </select>
+  <button id="openTermSummaryBtn" class="summary-btn" type="button">
+    📊 View Summary
+  </button>
+</section>
+
+<section class="alert-center">
+  <div class="alert-header">
+    <h2>🚨 Alert Center</h2>
+    <span>#BeKind</span>
+  </div>
+
+  <div id="alertList">
+    <p class="empty-message">No alerts yet. 🐨</p>
+  </div>
+</section>
+
+<section class="add-panel admin-only" id="addPanel">
+  <div class="alert-header">
+    <h2>➕ Add Violation</h2>
+    <button id="addPanelToggle" type="button">Hide</button>
+  </div>
+
+  <div id="addPanelContent">
+    <form id="addViolationForm" class="add-form">
+      <select id="addStudent" required>
+        <option value="">Select Student</option>
+      </select>
+
+      <select id="addViolationType" required>
+        <option value="">Select Violation</option>
+      </select>
+
+      <select id="addStatus" required>
+        <option value="Unpaid">Unpaid</option>
+        <option value="Paid">Paid</option>
+        <option value="Waived">Waived</option>
+      </select>
+
+      <select id="addActionTaken">
+        <option value="Verbal Reminder">Verbal Reminder</option>
+        <option value="Parent Notified">Parent Notified</option>
+        <option value="Reflection Given">Reflection Given</option>
+        <option value="Guidance Referral">Guidance Referral</option>
+        <option value="Paid / Settled">Paid / Settled</option>
+        <option value="Other">Other</option>
+      </select>
+
+      <input type="date" id="addDate" required />
+
+      <input type="date" id="addFollowUpDate" title="Follow-up Date" />
+
+      <select id="addFollowUpStatus">
+        <option value="Pending">Follow-up: Pending</option>
+        <option value="Improved">Follow-up: Improved</option>
+        <option value="Repeated">Follow-up: Repeated</option>
+        <option value="Resolved">Follow-up: Resolved</option>
+      </select>
+
+      <select id="addParentContacted">
+        <option value="No">Parent Contacted: No</option>
+        <option value="Yes">Parent Contacted: Yes</option>
+      </select>
+
+      <textarea
+        id="addReflection"
+        placeholder="Reflection / commitment optional..."
+      ></textarea>
+
+      <input
+        type="text"
+        id="addNotes"
+        placeholder="Notes optional..."
+      />
+
+      <button type="submit">Save Violation</button>
+    </form>
+
+    <p id="addMessage" class="empty-message hidden"></p>
+  </div>
+</section>
+
+<main>
+  <aside class="student-panel">
+    <h2>Students</h2>
+
+    <button id="printAllBtn" class="print-btn print-all-btn admin-only" type="button">
+      🖨 Print All Records
+    </button>
+
+    <input
+      type="text"
+      id="studentSearch"
+      placeholder="Search student..."
+      autocomplete="off"
+    />
+
+    <select id="studentSort">
+      <option value="az">Alphabetical A-Z</option>
+      <option value="most">Most Violations</option>
+      <option value="newest">Newest Violation</option>
+      <option value="alerts">With Alerts</option>
+    </select>
+
+    <div id="studentList"></div>
+  </aside>
+
+  <section class="details-panel">
+    <h2 id="selectedName">Select a student</h2>
+    <div id="studentSummary"></div>
+    <button id="printRecordBtn" class="print-btn admin-only">
+      🖨 Print Student Record
+    </button>
+
+    <h3>Violation History</h3>
+
+    <select id="violationFilter">
+      <option value="all">All Violations</option>
+      <option value="paid">Paid</option>
+      <option value="unpaid">Unpaid</option>
+      <option value="waived">Waived</option>
+    </select>
+
+    <div id="violationList">
+      <p class="empty-message">Choose a student to view records. 🐨</p>
+    </div>
+  </section>
+
+  <aside class="fee-panel admin-only" id="feePanel">
+    <div class="panel-header">
+      <h2>Kindness Guide</h2>
+      <button id="panelToggle">Hide</button>
+    </div>
+
+    <div id="panelContent">
+      <p class="guide-text">
+        Fees may be hidden in Serious Mode so the focus stays on behavior, reflection, and guidance.
+      </p>
+
+      <h3>Violation Fee List</h3>
+      <div id="feeList"></div>
+    </div>
+  </aside>
+</main>
+
+<div class="modal hidden" id="editModal">
+  <div class="modal-card">
+    <h2>Edit Violation</h2>
+
+    <form id="editViolationForm">
+      <input type="hidden" id="editRecordId" />
+
+      <label>Violation Type</label>
+      <select id="editViolationType" required></select>
+
+      <label>Status</label>
+      <select id="editStatus" required>
+        <option value="Unpaid">Unpaid</option>
+        <option value="Paid">Paid</option>
+        <option value="Waived">Waived</option>
+      </select>
+
+      <label>Action Taken</label>
+      <select id="editActionTaken">
+        <option value="Verbal Reminder">Verbal Reminder</option>
+        <option value="Parent Notified">Parent Notified</option>
+        <option value="Reflection Given">Reflection Given</option>
+        <option value="Guidance Referral">Guidance Referral</option>
+        <option value="Paid / Settled">Paid / Settled</option>
+        <option value="Other">Other</option>
+      </select>
+
+      <label>Reflection / Commitment</label>
+      <textarea id="editReflection" placeholder="Student reflection or commitment optional..."></textarea>
+
+      <label>Follow-up Date</label>
+      <input type="date" id="editFollowUpDate" />
+
+      <label>Follow-up Status</label>
+      <select id="editFollowUpStatus">
+        <option value="Pending">Pending</option>
+        <option value="Improved">Improved</option>
+        <option value="Repeated">Repeated</option>
+        <option value="Resolved">Resolved</option>
+      </select>
+
+      <label>Parent Contacted</label>
+      <select id="editParentContacted">
+        <option value="No">No</option>
+        <option value="Yes">Yes</option>
+      </select>
+
+      <label>Date</label>
+      <input type="date" id="editDate" required />
+
+      <label>Notes</label>
+      <input type="text" id="editNotes" placeholder="Notes optional..." />
+
+      <div class="modal-actions">
+        <button type="button" id="closeEditModal">Cancel</button>
+        <button type="submit">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal hidden" id="deleteModal">
+  <div class="modal-card">
+    <h2>Delete Violation?</h2>
+    <p class="guide-text">
+      This action will remove the violation record from the sheet.
+    </p>
+
+    <input type="hidden" id="deleteRecordId" />
+
+    <div class="modal-actions">
+      <button type="button" id="closeDeleteModal">Cancel</button>
+      <button type="button" id="confirmDeleteBtn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal hidden" id="termSummaryModal">
+  <div class="modal-card summary-modal-card">
+    <div class="modal-title-row">
+      <div>
+        <h2>📊 Term Summary</h2>
+        <p id="termSummaryLabel" class="modal-subtitle">All Terms</p>
+      </div>
+      <button type="button" id="closeTermSummaryModal" class="modal-x">×</button>
+    </div>
+
+    <div id="termSummaryList" class="term-summary-list modal-summary-list">
+      <p class="empty-message">Loading term summary... 🐨</p>
+    </div>
+  </div>
+</div>
+
+<div class="modal hidden" id="printOptionsModal">
+  <div class="modal-card">
+    <h2>Print Student Record</h2>
+    <p class="guide-text">
+      Piliin kung anong details ang isasama sa printed record.
+    </p>
+
+    <div class="print-options">
+      <label>
+        <input type="checkbox" id="printIncludeFees" />
+        Include Fee Details
+      </label>
+
+      <label>
+        <input type="checkbox" id="printIncludeStatus" checked />
+        Include Status
+      </label>
+
+      <label>
+        <input type="checkbox" id="printIncludeAction" checked />
+        Include Action Taken
+      </label>
+
+      <label>
+        <input type="checkbox" id="printIncludeReflection" checked />
+        Include Reflection / Commitment
+      </label>
+
+      <label>
+        <input type="checkbox" id="printIncludeFollowUp" checked />
+        Include Follow-up Details
+      </label>
+
+      <label>
+        <input type="checkbox" id="printIncludeParent" checked />
+        Include Parent Contacted
+      </label>
+
+      <label>
+        <input type="checkbox" id="printIncludeNotes" checked />
+        Include Notes
+      </label>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" id="closePrintOptionsModal">Cancel</button>
+      <button type="button" id="confirmPrintBtn">Print</button>
+    </div>
+  </div>
+</div>
+
+
+<div class="modal hidden" id="printAllOptionsModal">
+  <div class="modal-card">
+    <h2>Print All Student Records</h2>
+    <p class="guide-text">
+      Piliin kung anong details ang isasama sa class record printout.
+    </p>
+
+    <div class="print-options">
+      <label>
+        <input type="checkbox" id="printAllIncludeNoViolations" checked />
+        Include students with no violations
+      </label>
+
+      <label>
+        <input type="checkbox" id="printAllIncludeFees" />
+        Include Fee Details
+      </label>
+
+      <label>
+        <input type="checkbox" id="printAllIncludeStatus" checked />
+        Include Status
+      </label>
+
+      <label>
+        <input type="checkbox" id="printAllIncludeAction" checked />
+        Include Action Taken
+      </label>
+
+      <label>
+        <input type="checkbox" id="printAllIncludeReflection" checked />
+        Include Reflection / Commitment
+      </label>
+
+      <label>
+        <input type="checkbox" id="printAllIncludeFollowUp" checked />
+        Include Follow-up Details
+      </label>
+
+      <label>
+        <input type="checkbox" id="printAllIncludeParent" checked />
+        Include Parent Contacted
+      </label>
+
+      <label>
+        <input type="checkbox" id="printAllIncludeNotes" checked />
+        Include Notes
+      </label>
+
+      <label>
+        <input type="checkbox" id="printAllPageBreak" checked />
+        Page break per student
+      </label>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" id="closePrintAllOptionsModal">Cancel</button>
+      <button type="button" id="confirmPrintAllBtn">Print All</button>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
