@@ -1168,6 +1168,7 @@ function buildPrintableStudentSection(student, options) {
     includeNotes,
     pageBreak
   } = options;
+
   const status = getStudentStatus(student);
   const { totalFees, paidFees, unpaidFees, waivedFees } = getFeeSummary(student);
 
@@ -1201,6 +1202,11 @@ function buildPrintableStudentSection(student, options) {
 
   return `
     <section class="student-record ${pageBreak ? "page-break" : ""}">
+      <div class="student-header">
+        <h1>SFK KindTrack</h1>
+        <p class="tag">Student Record • Track with fairness. Guide with kindness. #BeKind</p>
+      </div>
+
       <div class="student-info">
         <h2>${student.name}</h2>
         <p><strong>Section:</strong> ${student.section || ""}</p>
@@ -1240,6 +1246,7 @@ function buildPrintableStudentSection(student, options) {
     </section>
   `;
 }
+
 
 function printAllStudentRecords() {
   const includeNoViolations = printAllIncludeNoViolations
@@ -1340,12 +1347,6 @@ function printAllStudentRecords() {
             color: #151515;
           }
 
-          .header {
-            border-bottom: 4px solid #ffd83d;
-            padding-bottom: 14px;
-            margin-bottom: 18px;
-          }
-
           h1 {
             margin: 0 0 5px;
             font-size: 28px;
@@ -1357,20 +1358,43 @@ function printAllStudentRecords() {
             margin: 0;
           }
 
+          .cover-page {
+            page-break-after: always;
+            break-after: page;
+          }
+
+          .cover-header,
+          .student-header {
+            border-bottom: 4px solid #ffd83d;
+            padding-bottom: 14px;
+            margin-bottom: 18px;
+          }
+
           .class-summary {
             background: #151515;
             color: white;
             border-radius: 14px;
-            padding: 14px;
+            padding: 16px;
             margin: 18px 0;
           }
 
           .class-summary p {
-            margin: 5px 0;
+            margin: 7px 0;
+          }
+
+          .cover-note {
+            background: #fff9e8;
+            border: 1px solid #e8d99a;
+            border-radius: 14px;
+            padding: 14px;
+            margin-top: 18px;
+            color: #5f4700;
+            line-height: 1.45;
           }
 
           .student-record {
-            margin-top: 22px;
+            margin: 0;
+            padding-top: 0;
           }
 
           .student-record.page-break {
@@ -1445,6 +1469,14 @@ function printAllStudentRecords() {
               padding: 16px;
             }
 
+            .cover-page {
+              min-height: 95vh;
+            }
+
+            .student-record {
+              min-height: 95vh;
+            }
+
             .student-info {
               break-inside: avoid;
             }
@@ -1457,23 +1489,30 @@ function printAllStudentRecords() {
       </head>
 
       <body>
-        <div class="header">
-          <h1>SFK KindTrack</h1>
-          <p class="tag">All Student Records • Track with fairness. Guide with kindness. #BeKind</p>
-        </div>
+        <section class="cover-page">
+          <div class="cover-header">
+            <h1>SFK KindTrack</h1>
+            <p class="tag">All Student Records • Track with fairness. Guide with kindness. #BeKind</p>
+          </div>
 
-        <div class="class-summary">
-          <p><strong>Class/Section:</strong> Grade 8 – St. Faustina Kowalska</p>
-          <p><strong>Total Students Printed:</strong> ${printableStudents.length}</p>
-          <p><strong>Total Violations:</strong> ${totalViolations}</p>
-          ${includeFees ? `<p><strong>Class Total Fees:</strong> ₱${classTotalFees}</p>` : ""}
-        </div>
+          <div class="class-summary">
+            <p><strong>Class/Section:</strong> Grade 8 – St. Faustina Kowalska</p>
+            <p><strong>Term:</strong> ${getTermLabel()}</p>
+            <p><strong>Total Students Printed:</strong> ${printableStudents.length}</p>
+            <p><strong>Total Violations:</strong> ${totalViolations}</p>
+            ${includeFees ? `<p><strong>Class Total Fees:</strong> ₱${classTotalFees}</p>` : ""}
+          </div>
+
+          <div class="cover-note">
+            <strong>Note:</strong> This first page is the class summary. Individual student records start on the next page.
+          </div>
+
+          <p class="footer">
+            Generated through SFK KindTrack. Records are handled with fairness, respect, and kindness.
+          </p>
+        </section>
 
         ${sections}
-
-        <p class="footer">
-          Generated through SFK KindTrack. Records are handled with fairness, respect, and kindness.
-        </p>
       </body>
     </html>
   `);
