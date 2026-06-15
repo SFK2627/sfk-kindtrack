@@ -56,6 +56,8 @@ const closeTermSummaryModal = document.getElementById("closeTermSummaryModal");
 
 const attendanceDate = document.getElementById("attendanceDate");
 const attendanceQuickSummary = document.getElementById("attendanceQuickSummary");
+const attendanceQuickDate = document.getElementById("attendanceQuickDate");
+const attendanceQuickSnapshot = document.getElementById("attendanceQuickSnapshot");
 const attendanceModal = document.getElementById("attendanceModal");
 const openAttendanceModalBtn = document.getElementById("openAttendanceModalBtn");
 const closeAttendanceModal = document.getElementById("closeAttendanceModal");
@@ -388,12 +390,16 @@ function renderAttendanceSafely() {
 
     if (attendanceQuickSummary) {
       attendanceQuickSummary.innerHTML = `
-        <span>Present: -</span>
-        <span>Absent: -</span>
-        <span>Excused: -</span>
-        <span>Tardy: -</span>
-        <span>Total: -</span>
+        <button type="button" class="quick-att-card present" data-attendance-status="Present"><span>Present</span><strong>-</strong></button>
+        <button type="button" class="quick-att-card absent" data-attendance-status="Absent"><span>Absent</span><strong>-</strong></button>
+        <button type="button" class="quick-att-card excused" data-attendance-status="Excused"><span>Excused</span><strong>-</strong></button>
+        <button type="button" class="quick-att-card tardy" data-attendance-status="Tardy"><span>Tardy</span><strong>-</strong></button>
+        <button type="button" class="quick-att-total" data-attendance-status="all">Total Students: -</button>
       `;
+    }
+
+    if (attendanceQuickSnapshot) {
+      attendanceQuickSnapshot.textContent = "Attendance summary unavailable.";
     }
   }
 }
@@ -744,15 +750,41 @@ function renderAttendanceSummary(rows) {
 function renderAttendanceQuickSummary() {
   if (!attendanceQuickSummary) return;
 
-  const rows = getAttendanceRowsForDate(getTodayISO());
+  const todayValue = getTodayISO();
+  const rows = getAttendanceRowsForDate(todayValue);
   const counts = getAttendanceCounts(rows);
+  const issueCount = counts.Absent + counts.Excused + counts.Tardy;
+
+  if (attendanceQuickDate) {
+    attendanceQuickDate.textContent = `Today • ${formatDisplayDate(todayValue)}`;
+  }
+
+  if (attendanceQuickSnapshot) {
+    attendanceQuickSnapshot.textContent = issueCount === 0
+      ? `✅ All ${rows.length} student(s) marked Present today.`
+      : `⚠️ ${counts.Absent} Absent • ${counts.Tardy} Tardy • ${counts.Excused} Excused today.`;
+  }
 
   attendanceQuickSummary.innerHTML = `
-    <button type="button" data-attendance-status="Present">Present: ${counts.Present}</button>
-    <button type="button" data-attendance-status="Absent">Absent: ${counts.Absent}</button>
-    <button type="button" data-attendance-status="Excused">Excused: ${counts.Excused}</button>
-    <button type="button" data-attendance-status="Tardy">Tardy: ${counts.Tardy}</button>
-    <button type="button" data-attendance-status="all">Total: ${rows.length}</button>
+    <button type="button" class="quick-att-card present" data-attendance-status="Present">
+      <span>Present</span>
+      <strong>${counts.Present}</strong>
+    </button>
+    <button type="button" class="quick-att-card absent" data-attendance-status="Absent">
+      <span>Absent</span>
+      <strong>${counts.Absent}</strong>
+    </button>
+    <button type="button" class="quick-att-card excused" data-attendance-status="Excused">
+      <span>Excused</span>
+      <strong>${counts.Excused}</strong>
+    </button>
+    <button type="button" class="quick-att-card tardy" data-attendance-status="Tardy">
+      <span>Tardy</span>
+      <strong>${counts.Tardy}</strong>
+    </button>
+    <button type="button" class="quick-att-total" data-attendance-status="all">
+      Total Students: ${rows.length}
+    </button>
   `;
 }
 

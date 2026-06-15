@@ -86,23 +86,40 @@
   </button>
 </section>
 
-<section class="attendance-summary-panel">
-  <div class="attendance-header">
-    <div>
-      <h2>📅 Daily Attendance</h2>
-      <p>Quick view for today. Open only when you need to encode or review details.</p>
+<section class="attendance-summary-panel attendance-daily-card">
+  <div class="attendance-daily-top">
+    <div class="attendance-daily-icon">📅</div>
+    <div class="attendance-daily-copy">
+      <h2>Daily Attendance <span>#BeKind</span></h2>
+      <p id="attendanceQuickDate">Today</p>
+      <strong id="attendanceQuickSnapshot">Loading today’s attendance...</strong>
     </div>
-    <button id="openAttendanceModalBtn" class="summary-btn" type="button">
-      Open Attendance
-    </button>
   </div>
 
-  <div id="attendanceQuickSummary" class="attendance-summary">
-    <span>Present: 0</span>
-    <span>Absent: 0</span>
-    <span>Excused: 0</span>
-    <span>Tardy: 0</span>
-    <span>Total: 0</span>
+  <button id="openAttendanceModalBtn" class="attendance-main-action" type="button">
+    ✍️ Check Attendance
+  </button>
+
+  <div id="attendanceQuickSummary" class="attendance-summary quick-attendance-summary">
+    <button type="button" class="quick-att-card present" data-attendance-status="Present">
+      <span>Present</span>
+      <strong>0</strong>
+    </button>
+    <button type="button" class="quick-att-card absent" data-attendance-status="Absent">
+      <span>Absent</span>
+      <strong>0</strong>
+    </button>
+    <button type="button" class="quick-att-card excused" data-attendance-status="Excused">
+      <span>Excused</span>
+      <strong>0</strong>
+    </button>
+    <button type="button" class="quick-att-card tardy" data-attendance-status="Tardy">
+      <span>Tardy</span>
+      <strong>0</strong>
+    </button>
+    <button type="button" class="quick-att-total" data-attendance-status="all">
+      Total Students: 0
+    </button>
   </div>
 </section>
 

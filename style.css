@@ -2196,3 +2196,232 @@ select {
     font-size: 0.78rem;
   }
 }
+
+/* =========================
+   DAILY ATTENDANCE VISUAL UPGRADE
+   Cleaner phone-first card
+========================= */
+
+.attendance-summary-panel.attendance-daily-card {
+  padding: 18px;
+  background:
+    radial-gradient(circle at top right, rgba(255, 216, 61, .22), transparent 38%),
+    linear-gradient(135deg, rgba(255,255,255,.96), rgba(255,250,240,.96));
+  border: 1px solid rgba(17, 24, 39, .07);
+  border-radius: 26px;
+}
+
+.attendance-daily-top {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.attendance-daily-icon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: #fff1a8;
+  box-shadow: 0 8px 18px rgba(255, 216, 61, .22);
+  font-size: 1.35rem;
+}
+
+.attendance-daily-copy h2 {
+  margin: 0;
+  line-height: 1.05;
+  font-size: clamp(1.25rem, 3.6vw, 1.55rem);
+  letter-spacing: -.4px;
+}
+
+.attendance-daily-copy h2::after {
+  content: "";
+}
+
+.attendance-daily-copy h2 span {
+  color: var(--orange);
+  font-size: .82em;
+  font-weight: 900;
+}
+
+.attendance-daily-copy p {
+  margin: 5px 0 0;
+  color: #6b7280;
+  font-weight: 800;
+  font-size: .88rem;
+}
+
+.attendance-daily-copy strong {
+  display: block;
+  width: fit-content;
+  margin-top: 8px;
+  padding: 8px 11px;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: .84rem;
+  line-height: 1.25;
+}
+
+.attendance-main-action {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 13px 16px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, var(--black), #2a2a2a);
+  color: white;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 12px 26px rgba(0,0,0,.13);
+}
+
+.attendance-main-action:hover {
+  transform: translateY(-1px);
+}
+
+.quick-attendance-summary.attendance-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0 0;
+}
+
+.quick-attendance-summary .quick-att-card,
+.quick-attendance-summary .quick-att-total {
+  min-height: 78px;
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 4px;
+  border: 1px solid rgba(17, 24, 39, .08);
+  border-radius: 18px;
+  padding: 12px;
+  color: var(--black);
+  text-align: left;
+  box-shadow: 0 8px 18px rgba(0,0,0,.045);
+}
+
+.quick-attendance-summary .quick-att-card:hover,
+.quick-attendance-summary .quick-att-total:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 22px rgba(0,0,0,.07);
+}
+
+.quick-attendance-summary .quick-att-card span {
+  font-size: .76rem;
+  font-weight: 900;
+  color: rgba(0,0,0,.62);
+}
+
+.quick-attendance-summary .quick-att-card strong {
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.quick-attendance-summary .quick-att-card.present {
+  background: linear-gradient(135deg, #ecfdf5, #dcfce7);
+  border-color: rgba(34, 197, 94, .22);
+}
+
+.quick-attendance-summary .quick-att-card.absent {
+  background: linear-gradient(135deg, #fff1f2, #ffe4e6);
+  border-color: rgba(244, 63, 94, .20);
+}
+
+.quick-attendance-summary .quick-att-card.excused {
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  border-color: rgba(59, 130, 246, .20);
+}
+
+.quick-attendance-summary .quick-att-card.tardy {
+  background: linear-gradient(135deg, #fffbeb, #fef3c7);
+  border-color: rgba(245, 158, 11, .22);
+}
+
+.quick-attendance-summary .quick-att-total {
+  grid-column: 1 / -1;
+  min-height: auto;
+  justify-items: center;
+  padding: 10px 12px;
+  border-radius: 15px;
+  background: #111827;
+  color: white;
+  font-size: .92rem;
+  font-weight: 900;
+  text-align: center;
+}
+
+@media (max-width: 650px) {
+  .attendance-summary-panel.attendance-daily-card {
+    width: min(100% - 18px, 1180px);
+    padding: 14px;
+    border-radius: 22px;
+  }
+
+  .attendance-daily-top {
+    grid-template-columns: auto 1fr;
+    gap: 10px;
+  }
+
+  .attendance-daily-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 14px;
+    font-size: 1.15rem;
+  }
+
+  .attendance-daily-copy h2 {
+    font-size: 1.22rem;
+  }
+
+  .attendance-daily-copy p {
+    font-size: .76rem;
+  }
+
+  .attendance-daily-copy strong {
+    width: 100%;
+    margin-top: 7px;
+    padding: 7px 9px;
+    border-radius: 13px;
+    font-size: .76rem;
+  }
+
+  .attendance-main-action {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border-radius: 16px;
+    font-size: .94rem;
+  }
+
+  .quick-attendance-summary.attendance-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .quick-attendance-summary .quick-att-card {
+    min-height: 64px;
+    border-radius: 15px;
+    padding: 10px;
+  }
+
+  .quick-attendance-summary .quick-att-card span {
+    font-size: .68rem;
+  }
+
+  .quick-attendance-summary .quick-att-card strong {
+    font-size: 1.28rem;
+  }
+
+  .quick-attendance-summary .quick-att-total {
+    padding: 9px 10px;
+    border-radius: 14px;
+    font-size: .84rem;
+  }
+}
