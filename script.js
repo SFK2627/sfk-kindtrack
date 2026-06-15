@@ -5,6 +5,10 @@ let students = [];
 let selectedStudent = null;
 let feesVisible = true;
 let selectedTerm = "all";
+let attendanceRecords = [];
+let attendanceByDate = {};
+let attendanceMarkMode = "Absent";
+const ATTENDANCE_STATUSES = ["Present", "Absent", "Excused", "Tardy"];
 
 const ADMIN_PASSCODE = "SFK2026";
 let appMode = null;
@@ -20,11 +24,21 @@ const accessMessage = document.getElementById("accessMessage");
 const modeLabel = document.getElementById("modeLabel");
 const modeDescription = document.getElementById("modeDescription");
 const logoutAccessBtn = document.getElementById("logoutAccessBtn");
+const quickAddViolationBtn = document.getElementById("quickAddViolationBtn");
+const quickAttendanceBtn = document.getElementById("quickAttendanceBtn");
+const quickSummaryBtn = document.getElementById("quickSummaryBtn");
+const quickPrintAllBtn = document.getElementById("quickPrintAllBtn");
 
 const studentList = document.getElementById("studentList");
 const violationList = document.getElementById("violationList");
 const selectedName = document.getElementById("selectedName");
 const studentSummary = document.getElementById("studentSummary");
+const studentDetailsModal = document.getElementById("studentDetailsModal");
+const modalSelectedName = document.getElementById("modalSelectedName");
+const modalStudentSummary = document.getElementById("modalStudentSummary");
+const modalViolationFilter = document.getElementById("modalViolationFilter");
+const modalViolationList = document.getElementById("modalViolationList");
+const closeStudentDetailsModal = document.getElementById("closeStudentDetailsModal");
 const studentSort = document.getElementById("studentSort");
 const studentSearch = document.getElementById("studentSearch");
 const violationFilter = document.getElementById("violationFilter");
@@ -39,6 +53,34 @@ const termSummaryList = document.getElementById("termSummaryList");
 const openTermSummaryBtn = document.getElementById("openTermSummaryBtn");
 const termSummaryModal = document.getElementById("termSummaryModal");
 const closeTermSummaryModal = document.getElementById("closeTermSummaryModal");
+
+const attendanceDate = document.getElementById("attendanceDate");
+const attendanceQuickSummary = document.getElementById("attendanceQuickSummary");
+const attendanceModal = document.getElementById("attendanceModal");
+const openAttendanceModalBtn = document.getElementById("openAttendanceModalBtn");
+const closeAttendanceModal = document.getElementById("closeAttendanceModal");
+const attendanceSearch = document.getElementById("attendanceSearch");
+const attendanceFilter = document.getElementById("attendanceFilter");
+const attendanceSort = document.getElementById("attendanceSort");
+const attendanceSummary = document.getElementById("attendanceSummary");
+const attendanceStatusModal = document.getElementById("attendanceStatusModal");
+const attendanceStatusTitle = document.getElementById("attendanceStatusTitle");
+const attendanceStatusSubtitle = document.getElementById("attendanceStatusSubtitle");
+const attendanceStatusList = document.getElementById("attendanceStatusList");
+const closeAttendanceStatusModal = document.getElementById("closeAttendanceStatusModal");
+const attendanceBoardTitle = document.getElementById("attendanceBoardTitle");
+const attendanceBoardDate = document.getElementById("attendanceBoardDate");
+const attendanceShowAll = document.getElementById("attendanceShowAll");
+const attendanceBoardList = document.getElementById("attendanceBoardList");
+const attendanceList = document.getElementById("attendanceList");
+const attendanceMessage = document.getElementById("attendanceMessage");
+const saveAttendanceBtn = document.getElementById("saveAttendanceBtn");
+const printAttendanceBtn = document.getElementById("printAttendanceBtn");
+const printMonthlyAttendanceBtn = document.getElementById("printMonthlyAttendanceBtn");
+const todayAttendanceBtn = document.getElementById("todayAttendanceBtn");
+const attendanceMonth = document.getElementById("attendanceMonth");
+const monthlyAttendanceList = document.getElementById("monthlyAttendanceList");
+const attendanceMarkModeButtons = document.querySelectorAll("[data-attendance-mode]");
 
 const addForm = document.getElementById("addViolationForm");
 const addStudent = document.getElementById("addStudent");
@@ -157,11 +199,11 @@ function openKindTrack(mode) {
   document.body.classList.add(mode === "admin" ? "admin-mode" : "view-only-mode");
 
   if (mode === "view") {
-    document.body.classList.add("hide-fees");
-    feesVisible = false;
+    document.body.classList.remove("hide-fees");
+    feesVisible = true;
 
     if (feeToggle) {
-      feeToggle.textContent = "Show Fees";
+      feeToggle.textContent = "Hide Fees";
     }
 
     if (modeLabel) modeLabel.textContent = "View Only Mode";
@@ -232,9 +274,19 @@ async function loadDataFromSheets() {
     studentList.innerHTML = `<p class="empty-message">Loading records... 🐨</p>`;
 
     const response = await fetch(API_URL);
+
+    if (!response.ok) {
+      throw new Error(`Sheets request failed: ${response.status}`);
+    }
+
     const data = await response.json();
 
-    violationFees = data.violationTypes.map(v => ({
+    const sheetStudents = Array.isArray(data.students) ? data.students : [];
+    const sheetViolationTypes = Array.isArray(data.violationTypes) ? data.violationTypes : [];
+    const sheetViolations = Array.isArray(data.violations) ? data.violations : [];
+    const sheetAttendance = Array.isArray(data.attendance) ? data.attendance : [];
+
+    violationFees = sheetViolationTypes.map(v => ({
       id: v.ViolationID,
       name: v.ViolationName,
       fee: Number(v.Fee) || 0,
@@ -244,7 +296,7 @@ async function loadDataFromSheets() {
 
     const violationsByStudent = {};
 
-    data.violations.forEach(v => {
+    sheetViolations.forEach(v => {
       const typeInfo = violationFees.find(type =>
         type.id === v.ViolationType || type.name === v.ViolationType
       );
@@ -270,20 +322,39 @@ async function loadDataFromSheets() {
       violationsByStudent[v.StudentID].push(item);
     });
 
-    students = data.students.map(student => ({
-      id: student.StudentID,
-      firstName: student.FirstName || "",
-      lastName: student.LastName || "",
-      name: `${student.LastName || ""}, ${student.FirstName || ""}`.trim(),
-      section: student.Section,
-      violations: violationsByStudent[student.StudentID] || []
+    students = sheetStudents.map(student => {
+      const normalizedStudent = normalizeKeys(student);
+      const studentId = normalizedStudent.studentid || student.StudentID || "";
+      const firstName = normalizedStudent.firstname || student.FirstName || "";
+      const lastName = normalizedStudent.lastname || student.LastName || "";
+
+      return {
+        id: studentId,
+        firstName,
+        lastName,
+        name: `${lastName || ""}, ${firstName || ""}`.trim(),
+        section: normalizedStudent.section || student.Section || "",
+        gender: normalizedStudent.gender || normalizedStudent.sex || "",
+        violations: violationsByStudent[studentId] || []
+      };
+    });
+
+    attendanceRecords = sheetAttendance.map(record => ({
+      attendanceId: record.AttendanceID || "",
+      studentId: record.StudentID || "",
+      date: formatDate(record.Date),
+      status: ATTENDANCE_STATUSES.includes(record.Status) ? record.Status : "Present",
+      remarks: record.Remarks || ""
     }));
+
+    rebuildAttendanceIndex();
 
     if (selectedStudent) {
       selectedStudent = students.find(s => s.id === selectedStudent.id) || null;
     }
 
     renderAll();
+    renderAttendanceSafely();
     populateAddForm();
 
   } catch (error) {
@@ -304,6 +375,26 @@ function renderAll() {
 
   if (selectedStudent) {
     renderStudentDetails();
+  }
+}
+
+function renderAttendanceSafely() {
+  try {
+    renderAttendance();
+    renderAttendanceQuickSummary();
+    renderMonthlyAttendance();
+  } catch (error) {
+    console.error("Attendance render error:", error);
+
+    if (attendanceQuickSummary) {
+      attendanceQuickSummary.innerHTML = `
+        <span>Present: -</span>
+        <span>Absent: -</span>
+        <span>Excused: -</span>
+        <span>Tardy: -</span>
+        <span>Total: -</span>
+      `;
+    }
   }
 }
 
@@ -437,6 +528,25 @@ function getStudentStatus(student) {
   return { label: "On Track", className: "track", icon: "🟢" };
 }
 
+function getGenderRank(student) {
+  const gender = String(student.gender || "").trim().toLowerCase();
+
+  if (["boy", "boys", "male", "m", "b", "lalaki", "men", "man"].includes(gender)) return 0;
+  if (["girl", "girls", "female", "f", "g", "babae", "women", "woman"].includes(gender)) return 1;
+
+  return 2;
+}
+
+function sortByName(a, b) {
+  return a.lastName.localeCompare(b.lastName) ||
+    a.firstName.localeCompare(b.firstName) ||
+    a.name.localeCompare(b.name);
+}
+
+function sortByGenderThenName(a, b) {
+  return getGenderRank(a) - getGenderRank(b) || sortByName(a, b);
+}
+
 function getSortedStudents() {
   const sortValue = studentSort.value;
   const searchValue = studentSearch.value.toLowerCase().trim();
@@ -450,10 +560,11 @@ function getSortedStudents() {
   }
 
   if (sortValue === "az") {
-    sorted.sort((a, b) =>
-      a.lastName.localeCompare(b.lastName) ||
-      a.firstName.localeCompare(b.firstName)
-    );
+    sorted.sort(sortByName);
+  }
+
+  if (sortValue === "boysGirls") {
+    sorted.sort(sortByGenderThenName);
   }
 
   if (sortValue === "most") {
@@ -482,6 +593,785 @@ function getSortedStudents() {
   }
 
   return sorted;
+}
+
+function getTodayISO() {
+  const today = new Date();
+  today.setMinutes(today.getMinutes() - today.getTimezoneOffset());
+  return today.toISOString().split("T")[0];
+}
+
+function getCurrentMonthISO() {
+  return getTodayISO().slice(0, 7);
+}
+
+function formatDisplayDate(dateValue) {
+  if (!dateValue) return "";
+
+  const date = new Date(`${dateValue}T00:00:00`);
+  if (isNaN(date)) return dateValue;
+
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric"
+  });
+}
+
+function escapeHTML(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function normalizeKey(key) {
+  return String(key || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function normalizeKeys(obj) {
+  const normalized = {};
+
+  Object.keys(obj || {}).forEach(key => {
+    normalized[normalizeKey(key)] = obj[key];
+  });
+
+  return normalized;
+}
+
+function ensureAttendanceDefaults() {
+  if (attendanceDate && !attendanceDate.value) {
+    attendanceDate.value = getTodayISO();
+  }
+
+  if (attendanceMonth && !attendanceMonth.value) {
+    attendanceMonth.value = getCurrentMonthISO();
+  }
+}
+
+function rebuildAttendanceIndex() {
+  attendanceByDate = {};
+
+  attendanceRecords.forEach(record => {
+    if (!record.date || !record.studentId) return;
+
+    if (!attendanceByDate[record.date]) {
+      attendanceByDate[record.date] = {};
+    }
+
+    attendanceByDate[record.date][record.studentId] = {
+      status: ATTENDANCE_STATUSES.includes(record.status) ? record.status : "Present",
+      remarks: record.remarks || "",
+      attendanceId: record.attendanceId || ""
+    };
+  });
+}
+
+function getAttendanceDateValue() {
+  ensureAttendanceDefaults();
+  return attendanceDate ? attendanceDate.value : getTodayISO();
+}
+
+function getAttendanceEntry(studentId, dateValue = getAttendanceDateValue()) {
+  const dateRecords = attendanceByDate[dateValue] || {};
+
+  return dateRecords[studentId] || {
+    status: "Present",
+    remarks: "",
+    attendanceId: ""
+  };
+}
+
+function setLocalAttendance(studentId, updates) {
+  const dateValue = getAttendanceDateValue();
+
+  if (!attendanceByDate[dateValue]) {
+    attendanceByDate[dateValue] = {};
+  }
+
+  const current = getAttendanceEntry(studentId, dateValue);
+
+  attendanceByDate[dateValue][studentId] = {
+    ...current,
+    ...updates
+  };
+}
+
+function getAttendanceRowsForDate(dateValue = getAttendanceDateValue()) {
+  return students.map(student => {
+    const entry = getAttendanceEntry(student.id, dateValue);
+
+    return {
+      student,
+      status: ATTENDANCE_STATUSES.includes(entry.status) ? entry.status : "Present",
+      remarks: entry.remarks || "",
+      attendanceId: entry.attendanceId || ""
+    };
+  });
+}
+
+function getAttendanceCounts(rows) {
+  const counts = {
+    Present: 0,
+    Absent: 0,
+    Excused: 0,
+    Tardy: 0
+  };
+
+  rows.forEach(row => {
+    counts[row.status] = (counts[row.status] || 0) + 1;
+  });
+
+  return counts;
+}
+
+function renderAttendanceSummary(rows) {
+  if (!attendanceSummary) return;
+
+  const counts = getAttendanceCounts(rows);
+
+  attendanceSummary.innerHTML = `
+    <button type="button" data-attendance-status="Present">Present: ${counts.Present}</button>
+    <button type="button" data-attendance-status="Absent">Absent: ${counts.Absent}</button>
+    <button type="button" data-attendance-status="Excused">Excused: ${counts.Excused}</button>
+    <button type="button" data-attendance-status="Tardy">Tardy: ${counts.Tardy}</button>
+    <button type="button" data-attendance-status="all">Total: ${rows.length}</button>
+  `;
+}
+
+function renderAttendanceQuickSummary() {
+  if (!attendanceQuickSummary) return;
+
+  const rows = getAttendanceRowsForDate(getTodayISO());
+  const counts = getAttendanceCounts(rows);
+
+  attendanceQuickSummary.innerHTML = `
+    <button type="button" data-attendance-status="Present">Present: ${counts.Present}</button>
+    <button type="button" data-attendance-status="Absent">Absent: ${counts.Absent}</button>
+    <button type="button" data-attendance-status="Excused">Excused: ${counts.Excused}</button>
+    <button type="button" data-attendance-status="Tardy">Tardy: ${counts.Tardy}</button>
+    <button type="button" data-attendance-status="all">Total: ${rows.length}</button>
+  `;
+}
+
+function renderAttendanceBoard(rows) {
+  if (!attendanceBoardList) return;
+
+  const dateValue = getAttendanceDateValue();
+  const showAll = attendanceShowAll ? attendanceShowAll.checked : false;
+  const groupOrder = showAll
+    ? ["Absent", "Tardy", "Excused", "Present"]
+    : ["Absent", "Tardy", "Excused"];
+
+  if (attendanceBoardTitle) {
+    attendanceBoardTitle.textContent =
+      dateValue === getTodayISO() ? "Today's Attendance" : "Selected Date Attendance";
+  }
+
+  if (attendanceBoardDate) {
+    attendanceBoardDate.textContent = formatDisplayDate(dateValue);
+  }
+
+  const groups = groupOrder.map(status => {
+    const matching = rows.filter(row => row.status === status);
+
+    return `
+      <div class="attendance-group ${status.toLowerCase()}">
+        <h3>${status} <span>${matching.length}</span></h3>
+        ${
+          matching.length
+            ? `<ul>${matching.map(row => `
+                <li>
+                  <strong>${escapeHTML(row.student.name)}</strong>
+                  ${row.remarks ? `<small>${escapeHTML(row.remarks)}</small>` : ""}
+                </li>
+              `).join("")}</ul>`
+            : `<p class="empty-message">None</p>`
+        }
+      </div>
+    `;
+  });
+
+  attendanceBoardList.innerHTML = groups.join("");
+}
+
+function openAttendanceStatusModal(status, dateValue = getTodayISO()) {
+  if (!attendanceStatusModal || !attendanceStatusList) return;
+
+  const rows = getAttendanceRowsForDate(dateValue)
+    .filter(row => status === "all" || row.status === status)
+    .sort((a, b) => sortByGenderThenName(a.student, b.student));
+
+  const title = status === "all" ? "All Students" : `${status} Students`;
+
+  if (attendanceStatusTitle) {
+    attendanceStatusTitle.textContent = title;
+  }
+
+  if (attendanceStatusSubtitle) {
+    attendanceStatusSubtitle.textContent = formatDisplayDate(dateValue);
+  }
+
+  attendanceStatusList.innerHTML = rows.length
+    ? rows.map(row => `
+        <div class="attendance-status-item status-${row.status.toLowerCase()}">
+          <strong>${escapeHTML(row.student.name)}</strong>
+          <span>${row.status}${row.remarks ? ` • ${escapeHTML(row.remarks)}` : ""}</span>
+        </div>
+      `).join("")
+    : `<p class="empty-message">No students in this status.</p>`;
+
+  attendanceStatusModal.classList.remove("hidden");
+}
+
+function closeAttendanceStatusPopup() {
+  if (!attendanceStatusModal) return;
+  attendanceStatusModal.classList.add("hidden");
+}
+
+function renderAttendanceList(rows) {
+  if (!attendanceList) return;
+
+  const searchValue = attendanceSearch ? attendanceSearch.value.toLowerCase().trim() : "";
+  const filterValue = attendanceFilter ? attendanceFilter.value : "all";
+  const sortValue = attendanceSort ? attendanceSort.value : "az";
+
+  let visibleRows = [...rows];
+
+  if (searchValue) {
+    visibleRows = visibleRows.filter(row =>
+      row.student.name.toLowerCase().includes(searchValue)
+    );
+  }
+
+  if (filterValue !== "all") {
+    visibleRows = visibleRows.filter(row => row.status === filterValue);
+  }
+
+  const statusRank = {
+    Absent: 0,
+    Tardy: 1,
+    Excused: 2,
+    Present: 3
+  };
+
+  if (sortValue === "exceptions") {
+    visibleRows.sort((a, b) =>
+      statusRank[a.status] - statusRank[b.status] ||
+      sortByName(a.student, b.student)
+    );
+  } else if (sortValue === "boysGirls") {
+    visibleRows.sort((a, b) => sortByGenderThenName(a.student, b.student));
+  } else if (sortValue === "az") {
+    visibleRows.sort((a, b) => sortByName(a.student, b.student));
+  } else {
+    visibleRows.sort((a, b) => {
+      if (a.status === sortValue && b.status !== sortValue) return -1;
+      if (a.status !== sortValue && b.status === sortValue) return 1;
+      return sortByName(a.student, b.student);
+    });
+  }
+
+  if (visibleRows.length === 0) {
+    attendanceList.innerHTML = `<p class="empty-message">No students found for this view.</p>`;
+    return;
+  }
+
+  const disabled = appMode === "admin" ? "" : "disabled";
+
+  attendanceList.innerHTML = visibleRows.map(row => `
+    <div class="attendance-row status-${row.status.toLowerCase()}" data-student-id="${escapeHTML(row.student.id)}">
+      <button
+        type="button"
+        class="attendance-tap-target"
+        data-student-id="${escapeHTML(row.student.id)}"
+        onclick="markAttendanceStudent(this.dataset.studentId)"
+        ${appMode === "admin" ? "" : "disabled"}
+      >
+        <span>
+          <strong>${escapeHTML(row.student.name)}</strong>
+          <small>${row.remarks ? escapeHTML(row.remarks) : "Tap to mark selected status"}</small>
+        </span>
+        <b>${row.status}</b>
+      </button>
+
+      <input
+        class="attendance-remarks"
+        type="text"
+        placeholder="Remarks optional..."
+        value="${escapeHTML(row.remarks)}"
+        data-student-id="${escapeHTML(row.student.id)}"
+        ${disabled}
+      />
+    </div>
+  `).join("");
+}
+
+function renderAttendance() {
+  if (!attendanceList) return;
+
+  ensureAttendanceDefaults();
+  renderAttendanceMarkMode();
+
+  const rows = getAttendanceRowsForDate();
+
+  renderAttendanceSummary(rows);
+  renderAttendanceBoard(rows);
+  renderAttendanceList(rows);
+}
+
+function markAttendanceStudent(studentId) {
+  if (appMode !== "admin" || !studentId) return;
+
+  setLocalAttendance(studentId, {
+    status: attendanceMarkMode
+  });
+
+  renderAttendance();
+}
+
+window.markAttendanceStudent = markAttendanceStudent;
+
+function renderMonthlyAttendance() {
+  if (!monthlyAttendanceList) return;
+
+  ensureAttendanceDefaults();
+
+  const monthValue = attendanceMonth ? attendanceMonth.value : getCurrentMonthISO();
+
+  const rows = students.map(student => {
+    const counts = {
+      Present: 0,
+      Absent: 0,
+      Excused: 0,
+      Tardy: 0
+    };
+
+    attendanceRecords
+      .filter(record => record.studentId === student.id && record.date.slice(0, 7) === monthValue)
+      .forEach(record => {
+        const status = ATTENDANCE_STATUSES.includes(record.status) ? record.status : "Present";
+        counts[status] += 1;
+      });
+
+    return {
+      student,
+      counts,
+      total: counts.Present + counts.Absent + counts.Excused + counts.Tardy
+    };
+  });
+
+  if (rows.length === 0) {
+    monthlyAttendanceList.innerHTML = `<p class="empty-message">No students loaded yet.</p>`;
+    return;
+  }
+
+  monthlyAttendanceList.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Student</th>
+          <th>Present</th>
+          <th>Absent</th>
+          <th>Excused</th>
+          <th>Tardy</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows
+          .sort((a, b) => sortByGenderThenName(a.student, b.student))
+          .map(row => `
+            <tr>
+              <td>${escapeHTML(row.student.name)}</td>
+              <td>${row.counts.Present}</td>
+              <td>${row.counts.Absent}</td>
+              <td>${row.counts.Excused}</td>
+              <td>${row.counts.Tardy}</td>
+              <td>${row.total}</td>
+            </tr>
+          `).join("")}
+      </tbody>
+    </table>
+  `;
+}
+
+function getMonthlyAttendanceRows(monthValue = getCurrentMonthISO()) {
+  return students.map(student => {
+    const counts = {
+      Present: 0,
+      Absent: 0,
+      Excused: 0,
+      Tardy: 0
+    };
+
+    attendanceRecords
+      .filter(record => record.studentId === student.id && record.date.slice(0, 7) === monthValue)
+      .forEach(record => {
+        const status = ATTENDANCE_STATUSES.includes(record.status) ? record.status : "Present";
+        counts[status] += 1;
+      });
+
+    return {
+      student,
+      counts,
+      total: counts.Present + counts.Absent + counts.Excused + counts.Tardy
+    };
+  }).sort((a, b) => sortByGenderThenName(a.student, b.student));
+}
+
+function printMonthlyAttendanceReport() {
+  ensureAttendanceDefaults();
+
+  const monthValue = attendanceMonth ? attendanceMonth.value : getCurrentMonthISO();
+  const rows = getMonthlyAttendanceRows(monthValue);
+  const printWindow = window.open("", "_blank");
+
+  if (!printWindow) {
+    showToast("Please allow pop-ups to print the monthly attendance report.");
+    return;
+  }
+
+  const monthLabel = new Date(`${monthValue}-01T00:00:00`).toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric"
+  });
+
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>SFK KindTrack Monthly Attendance</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            color: #111827;
+            margin: 32px;
+          }
+          .header {
+            border-bottom: 3px solid #facc15;
+            padding-bottom: 14px;
+            margin-bottom: 18px;
+          }
+          .tag {
+            color: #6b7280;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+          }
+          h1 {
+            margin: 4px 0;
+            font-size: 28px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+          th,
+          td {
+            border: 1px solid #d1d5db;
+            padding: 8px;
+            text-align: left;
+            font-size: 12px;
+          }
+          th {
+            background: #111827;
+            color: white;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <p class="tag">SFK KindTrack • Monthly Attendance Report • #BeKind</p>
+          <h1>Monthly Attendance</h1>
+          <p><strong>Month:</strong> ${monthLabel}</p>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Student</th>
+              <th>Present</th>
+              <th>Absent</th>
+              <th>Excused</th>
+              <th>Tardy</th>
+              <th>Total Encoded Days</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(row => `
+              <tr>
+                <td>${escapeHTML(row.student.name)}</td>
+                <td>${row.counts.Present}</td>
+                <td>${row.counts.Absent}</td>
+                <td>${row.counts.Excused}</td>
+                <td>${row.counts.Tardy}</td>
+                <td>${row.total}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </body>
+    </html>
+  `);
+
+  printWindow.document.close();
+  setTimeout(() => {
+    printWindow.focus();
+    printWindow.print();
+  }, 250);
+}
+
+async function saveDailyAttendance() {
+  if (appMode !== "admin") {
+    showToast("Admin mode is required to save attendance.");
+    return;
+  }
+
+  const dateValue = getAttendanceDateValue();
+
+  if (!dateValue) {
+    showToast("Please choose an attendance date.");
+    return;
+  }
+
+  const records = getAttendanceRowsForDate(dateValue).map(row => ({
+    studentId: row.student.id,
+    status: row.status,
+    remarks: row.remarks
+  }));
+
+  if (saveAttendanceBtn) {
+    saveAttendanceBtn.disabled = true;
+    saveAttendanceBtn.textContent = "Saving...";
+  }
+
+  try {
+    const response = await fetch(API_URL, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "saveAttendance",
+        date: dateValue,
+        records
+      })
+    });
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.message || "Unable to save attendance.");
+    }
+
+    const savedRecords = (result.records || records).map(record => ({
+      attendanceId: record.attendanceId || record.AttendanceID || `ATT-${dateValue.replace(/-/g, "")}-${record.studentId || record.StudentID}`,
+      studentId: record.studentId || record.StudentID,
+      date: dateValue,
+      status: ATTENDANCE_STATUSES.includes(record.status || record.Status)
+        ? (record.status || record.Status)
+        : "Present",
+      remarks: record.remarks || record.Remarks || ""
+    }));
+
+    attendanceRecords = attendanceRecords.filter(record => record.date !== dateValue);
+    attendanceRecords.push(...savedRecords);
+    rebuildAttendanceIndex();
+    renderAttendance();
+    renderAttendanceQuickSummary();
+    renderMonthlyAttendance();
+
+    if (attendanceMessage) {
+      attendanceMessage.classList.remove("hidden");
+      attendanceMessage.textContent = "✅ Attendance saved successfully.";
+    }
+
+    showToast("✅ Attendance saved.");
+  } catch (error) {
+    console.error("Attendance save error:", error);
+    showToast("❌ Unable to save attendance.");
+  } finally {
+    if (saveAttendanceBtn) {
+      saveAttendanceBtn.disabled = false;
+      saveAttendanceBtn.textContent = "Save Attendance";
+    }
+  }
+}
+
+function printAttendanceReport() {
+  const dateValue = getAttendanceDateValue();
+  const rows = getAttendanceRowsForDate(dateValue).sort((a, b) =>
+    a.student.name.localeCompare(b.student.name)
+  );
+  const counts = getAttendanceCounts(rows);
+  const printWindow = window.open("", "_blank");
+
+  if (!printWindow) {
+    showToast("Please allow pop-ups to print the attendance report.");
+    return;
+  }
+
+  const grouped = ["Absent", "Tardy", "Excused", "Present"].map(status => {
+    const matching = rows.filter(row => row.status === status);
+
+    return `
+      <section class="group">
+        <h2>${status} (${matching.length})</h2>
+        ${
+          matching.length
+            ? `<table>
+                <thead>
+                  <tr>
+                    <th>Student</th>
+                    <th>Remarks</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${matching.map(row => `
+                    <tr>
+                      <td>${escapeHTML(row.student.name)}</td>
+                      <td>${escapeHTML(row.remarks || "")}</td>
+                    </tr>
+                  `).join("")}
+                </tbody>
+              </table>`
+            : `<p>None</p>`
+        }
+      </section>
+    `;
+  }).join("");
+
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>SFK KindTrack Attendance Report</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            color: #111827;
+            margin: 32px;
+          }
+          .header {
+            border-bottom: 3px solid #facc15;
+            padding-bottom: 14px;
+            margin-bottom: 18px;
+          }
+          .tag {
+            color: #6b7280;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+          }
+          h1 {
+            margin: 4px 0;
+            font-size: 28px;
+          }
+          .summary {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin: 18px 0;
+          }
+          .summary div {
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 10px;
+          }
+          .summary span {
+            display: block;
+            color: #6b7280;
+            font-size: 12px;
+          }
+          .summary strong {
+            display: block;
+            font-size: 22px;
+            margin-top: 4px;
+          }
+          .group {
+            page-break-inside: avoid;
+            margin-top: 18px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+          th,
+          td {
+            border: 1px solid #d1d5db;
+            padding: 8px;
+            text-align: left;
+            font-size: 12px;
+          }
+          th {
+            background: #111827;
+            color: white;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <p class="tag">SFK KindTrack • Daily Attendance Report • #BeKind</p>
+          <h1>Daily Attendance</h1>
+          <p><strong>Date:</strong> ${formatDisplayDate(dateValue)}</p>
+        </div>
+
+        <div class="summary">
+          <div><span>Present</span><strong>${counts.Present}</strong></div>
+          <div><span>Absent</span><strong>${counts.Absent}</strong></div>
+          <div><span>Excused</span><strong>${counts.Excused}</strong></div>
+          <div><span>Tardy</span><strong>${counts.Tardy}</strong></div>
+          <div><span>Total</span><strong>${rows.length}</strong></div>
+        </div>
+
+        ${grouped}
+      </body>
+    </html>
+  `);
+
+  printWindow.document.close();
+  setTimeout(() => {
+    printWindow.focus();
+    printWindow.print();
+  }, 250);
+}
+
+function openAttendanceModal() {
+  if (!attendanceModal) return;
+  ensureAttendanceDefaults();
+  renderAttendance();
+  renderMonthlyAttendance();
+  const attendanceTools = document.querySelector(".attendance-mobile-tools");
+  if (attendanceTools) {
+    attendanceTools.open =
+      document.body.classList.contains("view-only-mode") || window.innerWidth > 650;
+  }
+  attendanceModal.classList.remove("hidden");
+}
+
+function closeAttendanceModalPanel() {
+  if (!attendanceModal) return;
+  attendanceModal.classList.add("hidden");
+}
+
+function openAddViolationModal() {
+  if (!addPanel) return;
+  addPanel.classList.remove("hidden");
+
+  if (addStudent) {
+    setTimeout(() => addStudent.focus(), 150);
+  }
+}
+
+function closeAddViolationModal() {
+  if (!addPanel) return;
+  addPanel.classList.add("hidden");
+}
+
+function renderAttendanceMarkMode() {
+  attendanceMarkModeButtons.forEach(button => {
+    button.classList.toggle("active", button.dataset.attendanceMode === attendanceMarkMode);
+  });
 }
 
 function renderTermSummary() {
@@ -635,7 +1525,9 @@ function selectStudentFromSummary(studentId) {
 
   const detailsPanel = document.querySelector(".details-panel");
 
-  if (detailsPanel) {
+  if (window.innerWidth <= 650) {
+    openStudentDetailsModal();
+  } else if (detailsPanel) {
     detailsPanel.scrollIntoView({
       behavior: "smooth",
       block: "start"
@@ -703,10 +1595,14 @@ function renderAlertCenter() {
       selectedStudent = student;
       renderAll();
 
-      window.scrollTo({
-        top: document.querySelector(".details-panel").offsetTop - 10,
-        behavior: "smooth"
-      });
+      if (window.innerWidth <= 650) {
+        openStudentDetailsModal();
+      } else {
+        window.scrollTo({
+          top: document.querySelector(".details-panel").offsetTop - 10,
+          behavior: "smooth"
+        });
+      }
     };
 
     alertList.appendChild(div);
@@ -753,10 +1649,7 @@ card.onclick = () => {
   renderStudentDetails();
 
   if (window.innerWidth <= 650) {
-    document.querySelector(".details-panel").scrollIntoView({
-      behavior: "smooth",
-      block: "start"
-    });
+    openStudentDetailsModal();
   }
 };
 
@@ -768,8 +1661,12 @@ function renderStudentDetails() {
   if (!selectedStudent) return;
 
   selectedName.textContent = selectedStudent.name;
+  studentSummary.innerHTML = buildStudentSummaryHTML(selectedStudent);
+  renderViolationList();
+}
 
-  const visibleViolations = getVisibleViolations(selectedStudent);
+function buildStudentSummaryHTML(student) {
+  const visibleViolations = getVisibleViolations(student);
   const total = visibleViolations.length;
 
   const totalFees = visibleViolations.reduce((sum, v) => sum + v.fee, 0);
@@ -783,15 +1680,15 @@ function renderStudentDetails() {
     .filter(v => v.status === "Waived")
     .reduce((sum, v) => sum + v.fee, 0);
 
-  const repeated = getRepeatedViolation(selectedStudent);
-  const status = getStudentStatus(selectedStudent);
+  const repeated = getRepeatedViolation(student);
+  const status = getStudentStatus(student);
 
   let alertText = "No repeated violation alert.";
 
   if (repeated) alertText = `⚠️ Repeated Alert: ${repeated[0]} has been recorded ${repeated[1]}x.`;
   if (total >= 5) alertText = `🚨 Total Alert: This student already has ${total} total violations.`;
 
-  studentSummary.innerHTML = `
+  return `
     <div class="summary-box">
       <p>
         <strong>Status:</strong>
@@ -811,37 +1708,25 @@ function renderStudentDetails() {
       </div>
     </div>
   `;
-
-  renderViolationList();
 }
 
-function renderViolationList() {
-  violationList.innerHTML = "";
+function buildViolationListHTML(student, filterValue = "all") {
+  if (!student) return `<p class="empty-message">Choose a student to view records. 🐨</p>`;
 
-  if (!selectedStudent) {
-    violationList.innerHTML = `<p class="empty-message">Choose a student to view records. 🐨</p>`;
-    return;
-  }
-
-  const filter = violationFilter.value;
-  let data = [...getVisibleViolations(selectedStudent)];
+  let data = [...getVisibleViolations(student)];
 
   data.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-  if (filter !== "all") {
-    data = data.filter(v => v.status.toLowerCase() === filter);
+  if (filterValue !== "all") {
+    data = data.filter(v => v.status.toLowerCase() === filterValue);
   }
 
   if (data.length === 0) {
-    violationList.innerHTML = `<p class="empty-message">No records found. 🐨</p>`;
-    return;
+    return `<p class="empty-message">No records found. 🐨</p>`;
   }
 
-  data.forEach(v => {
-    const div = document.createElement("div");
-    div.className = "violation-item";
-
-    div.innerHTML = `
+  return data.map(v => `
+    <div class="violation-item">
       <strong>${v.type}</strong>
       <small>${v.date}</small>
       <div class="fee-text">Fee: ₱${v.fee}</div>
@@ -856,10 +1741,45 @@ function renderViolationList() {
         <button type="button" onclick="editViolation('${v.recordId}')">Edit</button>
         <button type="button" onclick="deleteViolation('${v.recordId}')">Delete</button>
       </div>
-    `;
+    </div>
+  `).join("");
+}
 
-    violationList.appendChild(div);
-  });
+function renderViolationList() {
+  violationList.innerHTML = buildViolationListHTML(
+    selectedStudent,
+    violationFilter ? violationFilter.value : "all"
+  );
+}
+
+function openStudentDetailsModal() {
+  if (!selectedStudent || !studentDetailsModal) return;
+
+  if (modalSelectedName) {
+    modalSelectedName.textContent = selectedStudent.name;
+  }
+
+  if (modalStudentSummary) {
+    modalStudentSummary.innerHTML = buildStudentSummaryHTML(selectedStudent);
+  }
+
+  if (modalViolationFilter) {
+    modalViolationFilter.value = violationFilter ? violationFilter.value : "all";
+  }
+
+  if (modalViolationList) {
+    modalViolationList.innerHTML = buildViolationListHTML(
+      selectedStudent,
+      modalViolationFilter ? modalViolationFilter.value : "all"
+    );
+  }
+
+  studentDetailsModal.classList.remove("hidden");
+}
+
+function closeStudentDetailsPopup() {
+  if (!studentDetailsModal) return;
+  studentDetailsModal.classList.add("hidden");
 }
 
 function renderFeeList() {
@@ -969,6 +1889,7 @@ async function saveViolation(event) {
       addForm.reset();
       populateAddForm();
       renderAll();
+      closeAddViolationModal();
 
     } else {
       addMessage.textContent = "❌ Unable to save violation.";
@@ -1804,6 +2725,28 @@ feeToggle.onclick = () => {
 
 violationFilter.addEventListener("change", renderViolationList);
 
+if (modalViolationFilter) {
+  modalViolationFilter.addEventListener("change", () => {
+    if (!modalViolationList) return;
+    modalViolationList.innerHTML = buildViolationListHTML(
+      selectedStudent,
+      modalViolationFilter.value
+    );
+  });
+}
+
+if (closeStudentDetailsModal) {
+  closeStudentDetailsModal.addEventListener("click", closeStudentDetailsPopup);
+}
+
+if (studentDetailsModal) {
+  studentDetailsModal.addEventListener("click", event => {
+    if (event.target === studentDetailsModal) {
+      closeStudentDetailsPopup();
+    }
+  });
+}
+
 if (termFilter) {
   termFilter.addEventListener("change", () => {
     selectedTerm = termFilter.value;
@@ -1870,20 +2813,8 @@ if (panelToggle && feePanel) {
 
 if (addPanelToggle && addPanel) {
   addPanelToggle.addEventListener("click", () => {
-    addPanel.classList.toggle("add-collapsed");
-
-    addPanelToggle.textContent = addPanel.classList.contains("add-collapsed")
-      ? "View"
-      : "Hide";
+    closeAddViolationModal();
   });
-
-  if (window.innerWidth <= 650) {
-    addPanel.classList.add("add-collapsed");
-    addPanelToggle.textContent = "View";
-  } else {
-    addPanel.classList.remove("add-collapsed");
-    addPanelToggle.textContent = "Hide";
-  }
 }
 
 
@@ -1901,6 +2832,146 @@ if (termSummaryModal) {
       closeTermSummary();
     }
   });
+}
+
+if (quickAddViolationBtn && addPanel) {
+  quickAddViolationBtn.addEventListener("click", () => {
+    openAddViolationModal();
+  });
+}
+
+if (addPanel) {
+  addPanel.addEventListener("click", event => {
+    if (event.target === addPanel) {
+      closeAddViolationModal();
+    }
+  });
+}
+
+if (quickAttendanceBtn) {
+  quickAttendanceBtn.addEventListener("click", openAttendanceModal);
+}
+
+if (quickSummaryBtn) {
+  quickSummaryBtn.addEventListener("click", openTermSummaryModal);
+}
+
+if (quickPrintAllBtn) {
+  quickPrintAllBtn.addEventListener("click", openPrintAllOptions);
+}
+
+if (openAttendanceModalBtn) {
+  openAttendanceModalBtn.addEventListener("click", openAttendanceModal);
+}
+
+if (closeAttendanceModal) {
+  closeAttendanceModal.addEventListener("click", closeAttendanceModalPanel);
+}
+
+if (attendanceModal) {
+  attendanceModal.addEventListener("click", event => {
+    if (event.target === attendanceModal) {
+      closeAttendanceModalPanel();
+    }
+  });
+}
+
+if (attendanceDate) {
+  attendanceDate.addEventListener("change", () => {
+    renderAttendance();
+  });
+}
+
+if (attendanceSearch) {
+  attendanceSearch.addEventListener("input", renderAttendance);
+}
+
+if (attendanceFilter) {
+  attendanceFilter.addEventListener("change", renderAttendance);
+}
+
+if (attendanceSort) {
+  attendanceSort.addEventListener("change", renderAttendance);
+}
+
+if (attendanceShowAll) {
+  attendanceShowAll.addEventListener("change", renderAttendance);
+}
+
+if (attendanceQuickSummary) {
+  attendanceQuickSummary.addEventListener("click", event => {
+    const button = event.target.closest("[data-attendance-status]");
+    if (!button) return;
+    openAttendanceStatusModal(button.dataset.attendanceStatus, getTodayISO());
+  });
+}
+
+if (attendanceSummary) {
+  attendanceSummary.addEventListener("click", event => {
+    const button = event.target.closest("[data-attendance-status]");
+    if (!button) return;
+    openAttendanceStatusModal(button.dataset.attendanceStatus, getAttendanceDateValue());
+  });
+}
+
+if (closeAttendanceStatusModal) {
+  closeAttendanceStatusModal.addEventListener("click", closeAttendanceStatusPopup);
+}
+
+if (attendanceStatusModal) {
+  attendanceStatusModal.addEventListener("click", event => {
+    if (event.target === attendanceStatusModal) {
+      closeAttendanceStatusPopup();
+    }
+  });
+}
+
+attendanceMarkModeButtons.forEach(button => {
+  button.addEventListener("click", () => {
+    attendanceMarkMode = button.dataset.attendanceMode || "Absent";
+    renderAttendanceMarkMode();
+  });
+});
+
+if (attendanceMonth) {
+  attendanceMonth.addEventListener("change", renderMonthlyAttendance);
+}
+
+if (todayAttendanceBtn && attendanceDate) {
+  todayAttendanceBtn.addEventListener("click", () => {
+    attendanceDate.value = getTodayISO();
+    if (attendanceShowAll) {
+      attendanceShowAll.checked = false;
+    }
+    renderAttendance();
+  });
+}
+
+if (attendanceList) {
+  attendanceList.addEventListener("input", event => {
+    const target = event.target;
+
+    if (!target.matches(".attendance-remarks[data-student-id]")) return;
+
+    setLocalAttendance(target.dataset.studentId, {
+      remarks: target.value
+    });
+
+    renderAttendanceSummary(getAttendanceRowsForDate());
+    renderAttendanceBoard(getAttendanceRowsForDate());
+  });
+}
+
+if (saveAttendanceBtn) {
+  saveAttendanceBtn.addEventListener("click", saveDailyAttendance);
+}
+
+if (printAttendanceBtn) {
+  printAttendanceBtn.addEventListener("click", printAttendanceReport);
+}
+
+if (printMonthlyAttendanceBtn) {
+  printMonthlyAttendanceBtn.addEventListener("click", printMonthlyAttendanceReport);
 }
 
 if (printRecordBtn) {

@@ -43,7 +43,7 @@
     <p class="bekind">#BeKind</p>
   </div>
 
-  <button id="feeToggle" class="admin-only">Hide Fees</button>
+  <button id="feeToggle">Hide Fees</button>
 </header>
 
 
@@ -53,6 +53,13 @@
     <span id="modeDescription">Records are viewable. Editing tools are locked.</span>
   </div>
   <button type="button" id="logoutAccessBtn">Switch Mode</button>
+</section>
+
+<section class="admin-shortcuts admin-only">
+  <button type="button" id="quickAddViolationBtn">➕ Add Violation</button>
+  <button type="button" id="quickAttendanceBtn">📅 Attendance</button>
+  <button type="button" id="quickSummaryBtn">📊 Summary</button>
+  <button type="button" id="quickPrintAllBtn">🖨 Print All</button>
 </section>
 
 <section class="dashboard">
@@ -79,6 +86,168 @@
   </button>
 </section>
 
+<section class="attendance-summary-panel">
+  <div class="attendance-header">
+    <div>
+      <h2>📅 Daily Attendance</h2>
+      <p>Quick view for today. Open only when you need to encode or review details.</p>
+    </div>
+    <button id="openAttendanceModalBtn" class="summary-btn" type="button">
+      Open Attendance
+    </button>
+  </div>
+
+  <div id="attendanceQuickSummary" class="attendance-summary">
+    <span>Present: 0</span>
+    <span>Absent: 0</span>
+    <span>Excused: 0</span>
+    <span>Tardy: 0</span>
+    <span>Total: 0</span>
+  </div>
+</section>
+
+<div class="modal hidden" id="attendanceModal">
+  <div class="modal-card attendance-modal-card">
+    <div class="attendance-header">
+      <div>
+        <h2>📅 Daily Attendance</h2>
+        <p>Encode and review attendance for the selected date.</p>
+      </div>
+      <div class="attendance-list-actions">
+        <button id="todayAttendanceBtn" class="summary-btn" type="button">
+          Today
+        </button>
+        <button type="button" id="closeAttendanceModal" class="modal-x">×</button>
+      </div>
+    </div>
+
+  <div class="attendance-toolbar">
+    <label>
+      Date
+      <input type="date" id="attendanceDate" />
+    </label>
+  </div>
+
+  <p class="viewer-attendance-note">
+    View Only Mode shows the daily attendance summary and board only.
+  </p>
+
+  <p class="admin-attendance-note admin-only">
+    All students are Present by default. Choose a status, then tap student names.
+  </p>
+
+  <div class="attendance-mark-mode admin-only">
+    <span>Mark as</span>
+    <button type="button" data-attendance-mode="Absent" class="active">Absent</button>
+    <button type="button" data-attendance-mode="Tardy">Tardy</button>
+    <button type="button" data-attendance-mode="Excused">Excused</button>
+    <button type="button" data-attendance-mode="Present">Present / Reset</button>
+  </div>
+
+  <div class="attendance-list-shell">
+    <div class="attendance-list-header">
+      <strong>Student Attendance List</strong>
+      <div class="attendance-list-actions">
+        <button id="printAttendanceBtn" class="print-btn" type="button">
+          🖨 Print Attendance
+        </button>
+        <button id="saveAttendanceBtn" class="print-btn admin-only" type="button">
+          Save Attendance
+        </button>
+      </div>
+    </div>
+    <div id="attendanceList" class="attendance-list">
+      <p class="empty-message">Loading students...</p>
+    </div>
+    <p id="attendanceMessage" class="empty-message hidden"></p>
+  </div>
+
+  <details class="attendance-mobile-tools" open>
+    <summary>More attendance tools</summary>
+
+  <div class="attendance-toolbar attendance-extra-toolbar">
+
+    <label>
+      Search
+      <input
+        type="text"
+        id="attendanceSearch"
+        placeholder="Search student..."
+        autocomplete="off"
+      />
+    </label>
+
+    <label>
+      Filter
+      <select id="attendanceFilter">
+        <option value="all">All Students</option>
+        <option value="Present">Present</option>
+        <option value="Absent">Absent</option>
+        <option value="Excused">Excused</option>
+        <option value="Tardy">Tardy</option>
+      </select>
+    </label>
+
+    <label>
+      Sort
+      <select id="attendanceSort">
+        <option value="az">A-Z</option>
+        <option value="boysGirls">Boys first, then Girls</option>
+        <option value="exceptions">Needs attention first</option>
+        <option value="Present">Present first</option>
+        <option value="Absent">Absent first</option>
+        <option value="Excused">Excused first</option>
+        <option value="Tardy">Tardy first</option>
+      </select>
+    </label>
+  </div>
+
+  <div id="attendanceSummary" class="attendance-summary">
+    <span>Present: 0</span>
+    <span>Absent: 0</span>
+    <span>Excused: 0</span>
+    <span>Tardy: 0</span>
+    <span>Total: 0</span>
+  </div>
+
+  <div class="attendance-board">
+    <div class="attendance-board-header">
+      <div>
+        <strong id="attendanceBoardTitle">Selected Date Attendance</strong>
+        <span id="attendanceBoardDate"></span>
+      </div>
+      <label class="show-all-toggle">
+        <input type="checkbox" id="attendanceShowAll" />
+        Show All Students
+      </label>
+    </div>
+    <div id="attendanceBoardList" class="attendance-board-list">
+      <p class="empty-message">Choose a date to view attendance.</p>
+    </div>
+  </div>
+
+  </details>
+
+  <details class="monthly-attendance">
+    <summary>Monthly Attendance Summary</summary>
+    <div class="attendance-board-header">
+      <div>
+        <span>Counts per student for the selected month.</span>
+      </div>
+      <div class="monthly-attendance-actions">
+        <input type="month" id="attendanceMonth" />
+        <button id="printMonthlyAttendanceBtn" class="print-btn" type="button">
+          🖨 Print Monthly
+        </button>
+      </div>
+    </div>
+    <div id="monthlyAttendanceList" class="monthly-attendance-list">
+      <p class="empty-message">No monthly attendance yet.</p>
+    </div>
+  </details>
+  </div>
+</div>
+
 <section class="alert-center">
   <div class="alert-header">
     <h2>🚨 Alert Center</h2>
@@ -90,13 +259,16 @@
   </div>
 </section>
 
-<section class="add-panel admin-only" id="addPanel">
-  <div class="alert-header">
-    <h2>➕ Add Violation</h2>
-    <button id="addPanelToggle" type="button">Hide</button>
-  </div>
+<div class="modal hidden admin-only" id="addPanel">
+  <div class="modal-card add-violation-card" id="addPanelContent">
+    <div class="modal-title-row">
+      <div>
+        <h2>➕ Add Violation</h2>
+        <p class="modal-subtitle">Required fields first. Guidance notes are optional.</p>
+      </div>
+      <button id="addPanelToggle" type="button" class="modal-x">×</button>
+    </div>
 
-  <div id="addPanelContent">
     <form id="addViolationForm" class="add-form">
       <select id="addStudent" required>
         <option value="">Select Student</option>
@@ -123,37 +295,41 @@
 
       <input type="date" id="addDate" required />
 
-      <input type="date" id="addFollowUpDate" title="Follow-up Date" />
+      <details class="advanced-fields">
+        <summary>Optional guidance details</summary>
 
-      <select id="addFollowUpStatus">
-        <option value="Pending">Follow-up: Pending</option>
-        <option value="Improved">Follow-up: Improved</option>
-        <option value="Repeated">Follow-up: Repeated</option>
-        <option value="Resolved">Follow-up: Resolved</option>
-      </select>
+        <input type="date" id="addFollowUpDate" title="Follow-up Date" />
 
-      <select id="addParentContacted">
-        <option value="No">Parent Contacted: No</option>
-        <option value="Yes">Parent Contacted: Yes</option>
-      </select>
+        <select id="addFollowUpStatus">
+          <option value="Pending">Follow-up: Pending</option>
+          <option value="Improved">Follow-up: Improved</option>
+          <option value="Repeated">Follow-up: Repeated</option>
+          <option value="Resolved">Follow-up: Resolved</option>
+        </select>
 
-      <textarea
-        id="addReflection"
-        placeholder="Reflection / commitment optional..."
-      ></textarea>
+        <select id="addParentContacted">
+          <option value="No">Parent Contacted: No</option>
+          <option value="Yes">Parent Contacted: Yes</option>
+        </select>
 
-      <input
-        type="text"
-        id="addNotes"
-        placeholder="Notes optional..."
-      />
+        <textarea
+          id="addReflection"
+          placeholder="Reflection / commitment optional..."
+        ></textarea>
+
+        <input
+          type="text"
+          id="addNotes"
+          placeholder="Notes optional..."
+        />
+      </details>
 
       <button type="submit">Save Violation</button>
     </form>
 
     <p id="addMessage" class="empty-message hidden"></p>
   </div>
-</section>
+</div>
 
 <main>
   <aside class="student-panel">
@@ -172,6 +348,7 @@
 
     <select id="studentSort">
       <option value="az">Alphabetical A-Z</option>
+      <option value="boysGirls">Boys first, then Girls</option>
       <option value="most">Most Violations</option>
       <option value="newest">Newest Violation</option>
       <option value="alerts">With Alerts</option>
@@ -201,7 +378,7 @@
     </div>
   </section>
 
-  <aside class="fee-panel admin-only" id="feePanel">
+  <aside class="fee-panel" id="feePanel">
     <div class="panel-header">
       <h2>Kindness Guide</h2>
       <button id="panelToggle">Hide</button>
@@ -217,6 +394,33 @@
     </div>
   </aside>
 </main>
+
+<div class="modal hidden" id="studentDetailsModal">
+  <div class="modal-card student-details-modal-card">
+    <div class="modal-title-row">
+      <div>
+        <h2 id="modalSelectedName">Student Details</h2>
+        <p class="modal-subtitle">Tap outside or close when done.</p>
+      </div>
+      <button type="button" id="closeStudentDetailsModal" class="modal-x">×</button>
+    </div>
+
+    <div id="modalStudentSummary"></div>
+
+    <h3>Violation History</h3>
+
+    <select id="modalViolationFilter">
+      <option value="all">All Violations</option>
+      <option value="paid">Paid</option>
+      <option value="unpaid">Unpaid</option>
+      <option value="waived">Waived</option>
+    </select>
+
+    <div id="modalViolationList">
+      <p class="empty-message">No records found.</p>
+    </div>
+  </div>
+</div>
 
 <div class="modal hidden" id="editModal">
   <div class="modal-card">
@@ -307,6 +511,22 @@
 
     <div id="termSummaryList" class="term-summary-list modal-summary-list">
       <p class="empty-message">Loading term summary... 🐨</p>
+    </div>
+  </div>
+</div>
+
+<div class="modal hidden" id="attendanceStatusModal">
+  <div class="modal-card attendance-status-card">
+    <div class="modal-title-row">
+      <div>
+        <h2 id="attendanceStatusTitle">Attendance List</h2>
+        <p id="attendanceStatusSubtitle" class="modal-subtitle">Today</p>
+      </div>
+      <button type="button" id="closeAttendanceStatusModal" class="modal-x">×</button>
+    </div>
+
+    <div id="attendanceStatusList" class="attendance-status-list">
+      <p class="empty-message">No students found.</p>
     </div>
   </div>
 </div>
