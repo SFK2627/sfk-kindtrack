@@ -52,6 +52,10 @@
     <strong id="modeLabel">View Only Mode</strong>
     <span id="modeDescription">Records are viewable. Editing tools are locked.</span>
   </div>
+  <label class="viewer-fee-control admin-only">
+    <input type="checkbox" id="viewerFeeAccessToggle" />
+    Allow fees in View Only
+  </label>
   <button type="button" id="logoutAccessBtn">Switch Mode</button>
 </section>
 
@@ -86,40 +90,24 @@
   </button>
 </section>
 
-<section class="attendance-summary-panel attendance-daily-card">
-  <div class="attendance-daily-top">
-    <div class="attendance-daily-icon">📅</div>
-    <div class="attendance-daily-copy">
-      <h2>Daily Attendance <span>#BeKind</span></h2>
-      <p id="attendanceQuickDate">Today</p>
-      <strong id="attendanceQuickSnapshot">Loading today’s attendance...</strong>
+<section class="attendance-summary-panel">
+  <div class="attendance-header">
+    <div>
+      <h2>📅 Daily Attendance</h2>
+      <p id="attendanceQuickDate" class="attendance-date-line">Today</p>
+      <p class="attendance-helper-copy">Quick view for today. Open only when you need to encode or review details.</p>
     </div>
+    <button id="openAttendanceModalBtn" class="summary-btn" type="button">
+      Open Attendance
+    </button>
   </div>
 
-  <button id="openAttendanceModalBtn" class="attendance-main-action" type="button">
-    ✍️ Check Attendance
-  </button>
-
-  <div id="attendanceQuickSummary" class="attendance-summary quick-attendance-summary">
-    <button type="button" class="quick-att-card present" data-attendance-status="Present">
-      <span>Present</span>
-      <strong>0</strong>
-    </button>
-    <button type="button" class="quick-att-card absent" data-attendance-status="Absent">
-      <span>Absent</span>
-      <strong>0</strong>
-    </button>
-    <button type="button" class="quick-att-card excused" data-attendance-status="Excused">
-      <span>Excused</span>
-      <strong>0</strong>
-    </button>
-    <button type="button" class="quick-att-card tardy" data-attendance-status="Tardy">
-      <span>Tardy</span>
-      <strong>0</strong>
-    </button>
-    <button type="button" class="quick-att-total" data-attendance-status="all">
-      Total Students: 0
-    </button>
+  <div id="attendanceQuickSummary" class="attendance-summary">
+    <span>Present: 0</span>
+    <span>Absent: 0</span>
+    <span>Excused: 0</span>
+    <span>Tardy: 0</span>
+    <span>Total: 0</span>
   </div>
 </section>
 
@@ -253,6 +241,9 @@
       </div>
       <div class="monthly-attendance-actions">
         <input type="month" id="attendanceMonth" />
+        <button id="downloadMonthlyAttendanceBtn" class="print-btn" type="button">
+          ⬇ Download Spreadsheet
+        </button>
         <button id="printMonthlyAttendanceBtn" class="print-btn" type="button">
           🖨 Print Monthly
         </button>
