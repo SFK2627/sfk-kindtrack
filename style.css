@@ -4,6 +4,71 @@
   box-sizing: border-box;
 }
 
+.manage-fees-card {
+  width: min(720px, 100%);
+}
+
+.compact-form {
+  grid-template-columns: 1.5fr .7fr 1fr .7fr;
+  align-items: end;
+}
+
+.bulk-import-box {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(17, 24, 39, 0.1);
+}
+
+.bulk-import-box textarea {
+  width: 100%;
+  min-height: 128px;
+  resize: vertical;
+  border: 1px solid #d1d5db;
+  border-radius: 14px;
+  padding: 12px;
+  font: inherit;
+}
+
+.manage-fees-list {
+  display: grid;
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.manage-fee-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fffdf5;
+}
+
+.manage-fee-item small {
+  display: block;
+  margin-top: 2px;
+  color: #6b7280;
+  font-size: .78rem;
+}
+
+.manage-fee-item b {
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .compact-form {
+    grid-template-columns: 1fr;
+  }
+
+  .manage-fees-list {
+    max-height: 180px;
+  }
+}
+
 :root {
   --yellow: #ffd83d;
   --yellow-soft: #fff1a8;
@@ -648,10 +713,10 @@ select {
 }
 
 .admin-shortcuts {
-  width: min(1180px, calc(100% - 32px));
+  width: min(1480px, calc(100% - 32px));
   margin: 0 auto 14px;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -664,6 +729,8 @@ select {
   font-weight: 900;
   cursor: pointer;
   box-shadow: 0 10px 22px rgba(0,0,0,.08);
+  min-height: 54px;
+  white-space: nowrap;
 }
 
 .admin-shortcuts button:first-child {
@@ -722,7 +789,7 @@ select {
 
 @media (max-width: 1050px) {
   .admin-shortcuts {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .add-form {
@@ -746,6 +813,7 @@ select {
     padding: 10px 8px;
     border-radius: 12px;
     font-size: 0.82rem;
+    min-height: 44px;
   }
 
   .add-form {
@@ -1989,6 +2057,22 @@ select {
 
 .attendance-group small {
   color: #6b7280;
+}
+
+.attendance-inline-tag {
+  display: inline-flex;
+  width: fit-content;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.attendance-inline-tag.tardy {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #f59e0b;
 }
 
 .attendance-list-actions {
