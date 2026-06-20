@@ -471,29 +471,39 @@
 </div>
 
 <main>
-  <aside class="student-panel">
-    <h2>Students</h2>
+  <aside class="student-panel" id="studentPanel">
+    <div class="student-panel-top">
+      <div>
+        <h2>Students</h2>
+        <p class="student-panel-hint">Tap the button to show the class list on phone view.</p>
+      </div>
+      <button id="mobileStudentToggle" class="mobile-student-toggle" type="button" aria-expanded="false">
+        👥 View Students
+      </button>
+    </div>
 
-    <button id="printAllBtn" class="print-btn print-all-btn admin-only" type="button">
-      🖨 Print All Records
-    </button>
+    <div id="studentControls" class="student-controls">
+      <button id="printAllBtn" class="print-btn print-all-btn admin-only" type="button">
+        🖨 Print All Records
+      </button>
 
-    <input
-      type="text"
-      id="studentSearch"
-      placeholder="Search student..."
-      autocomplete="off"
-    />
+      <input
+        type="text"
+        id="studentSearch"
+        placeholder="Search student..."
+        autocomplete="off"
+      />
 
-    <select id="studentSort">
-      <option value="az">Alphabetical A-Z</option>
-      <option value="boysGirls">Boys first, then Girls</option>
-      <option value="most">Most Violations</option>
-      <option value="newest">Newest Violation</option>
-      <option value="alerts">With Alerts</option>
-    </select>
+      <select id="studentSort">
+        <option value="az">Alphabetical A-Z</option>
+        <option value="boysGirls">Boys first, then Girls</option>
+        <option value="most">Most Violations</option>
+        <option value="newest">Newest Violation</option>
+        <option value="alerts">With Alerts</option>
+      </select>
 
-    <div id="studentList"></div>
+      <div id="studentList"></div>
+    </div>
   </aside>
 
   <section class="details-panel">

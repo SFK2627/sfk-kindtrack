@@ -241,6 +241,45 @@ main {
   gap: 18px;
 }
 
+.student-panel-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.student-panel-top h2 {
+  margin-bottom: 4px;
+}
+
+.student-panel-hint {
+  display: none;
+  color: var(--gray);
+  font-size: .8rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.mobile-student-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 138px;
+  padding: 11px 14px;
+  border-radius: 999px;
+  background: var(--yellow);
+  color: var(--black);
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(255,216,61,.24);
+}
+
+.student-controls {
+  display: block;
+}
+
 .student-panel,
 .details-panel,
 .fee-panel {
@@ -566,6 +605,44 @@ select {
   .fee-panel {
     padding: 15px;
     border-radius: 20px;
+  }
+
+  .student-panel-top {
+    align-items: center;
+    margin-bottom: 0;
+  }
+
+  .student-panel-top h2 {
+    margin-bottom: 2px;
+  }
+
+  .student-panel-hint {
+    display: block;
+  }
+
+  .mobile-student-toggle {
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+
+  .student-controls {
+    display: none;
+  }
+
+  .student-panel.students-open .student-controls {
+    display: block;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(0,0,0,.08);
+  }
+
+  .student-panel.students-open .mobile-student-toggle {
+    background: var(--black);
+    color: var(--yellow);
+  }
+
+  .student-panel:not(.students-open) {
+    padding-bottom: 13px;
   }
 
   .details-panel {

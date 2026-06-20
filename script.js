@@ -64,6 +64,9 @@ const kindnessSettlementSummary = document.getElementById("kindnessSettlementSum
 const kindnessSettlementList = document.getElementById("kindnessSettlementList");
 
 const studentList = document.getElementById("studentList");
+const studentPanel = document.getElementById("studentPanel");
+const mobileStudentToggle = document.getElementById("mobileStudentToggle");
+const studentControls = document.getElementById("studentControls");
 const violationList = document.getElementById("violationList");
 const selectedName = document.getElementById("selectedName");
 const studentSummary = document.getElementById("studentSummary");
@@ -3423,10 +3426,49 @@ function renderKindnessSettlementDetails() {
   `;
 }
 
+
+function getCurrentStudentCountForToggle() {
+  try {
+    return getSortedStudents().length;
+  } catch (error) {
+    return students.length || 0;
+  }
+}
+
+function updateMobileStudentToggleLabel(count = null) {
+  if (!mobileStudentToggle || !studentPanel) return;
+
+  const isOpen = studentPanel.classList.contains("students-open");
+  const total = count === null ? getCurrentStudentCountForToggle() : count;
+  mobileStudentToggle.textContent = isOpen
+    ? "Hide Students"
+    : `👥 View Students${total ? ` (${total})` : ""}`;
+  mobileStudentToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+}
+
+function setMobileStudentsOpen(open) {
+  if (!studentPanel) return;
+  studentPanel.classList.toggle("students-open", Boolean(open));
+  updateMobileStudentToggleLabel();
+}
+
+function initializeMobileStudentPanel() {
+  if (!studentPanel || !mobileStudentToggle) return;
+
+  if (window.innerWidth > 650) {
+    studentPanel.classList.add("students-open");
+  } else {
+    studentPanel.classList.remove("students-open");
+  }
+
+  updateMobileStudentToggleLabel();
+}
+
 function renderStudents() {
   studentList.innerHTML = "";
 
   const sortedStudents = getSortedStudents();
+  updateMobileStudentToggleLabel(sortedStudents.length);
 
   if (sortedStudents.length === 0) {
     studentList.innerHTML = `<p class="empty-message">No students found. 🐨</p>`;
@@ -4942,6 +4984,25 @@ if (termFilter) {
     renderAll();
   });
 }
+if (mobileStudentToggle) {
+  mobileStudentToggle.addEventListener("click", () => {
+    const isOpen = studentPanel && studentPanel.classList.contains("students-open");
+    setMobileStudentsOpen(!isOpen);
+  });
+}
+
+window.addEventListener("resize", () => {
+  if (!studentPanel) return;
+
+  if (window.innerWidth > 650) {
+    studentPanel.classList.add("students-open");
+  }
+
+  updateMobileStudentToggleLabel();
+});
+
+initializeMobileStudentPanel();
+
 studentSort.addEventListener("change", renderStudents);
 studentSearch.addEventListener("input", renderStudents);
 
