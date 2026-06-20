@@ -5309,3 +5309,15 @@ if (printOptionsModal) {
 }
 
 initAccessGate();
+
+// PWA install support: enables Add to Home Screen / Install App on supported phones.
+(function registerKindTrackPWA() {
+  if (!('serviceWorker' in navigator)) return;
+  if (window.location.protocol === 'file:') return;
+
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('./service-worker.js')
+      .catch((error) => console.warn('KindTrack PWA registration failed:', error));
+  });
+})();
