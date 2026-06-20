@@ -5,12 +5,24 @@
 }
 
 .manage-fees-card {
-  width: min(720px, 100%);
+  width: min(860px, 100%);
 }
 
 .compact-form {
-  grid-template-columns: 1.5fr .7fr 1fr .7fr;
+  grid-template-columns: 1.4fr .55fr .75fr 1.2fr .75fr;
   align-items: end;
+}
+
+.compact-form .field-hint {
+  display: block;
+  margin-top: 4px;
+  color: #6b7280;
+  font-size: .72rem;
+  font-weight: 700;
+}
+
+.category-only-advanced {
+  grid-column: 1 / -1;
 }
 
 .bulk-import-box {
@@ -173,12 +185,13 @@ select {
 
 .dashboard {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 16px;
   margin: 18px 0;
 }
 
-.dashboard div {
+.dashboard div,
+.dashboard button {
   background: rgba(255,255,255,.88);
   backdrop-filter: blur(10px);
   padding: 18px;
@@ -193,6 +206,34 @@ select {
   margin-top: 8px;
   font-size: 2rem;
 }
+
+.dashboard button {
+  text-align: left;
+  cursor: pointer;
+  color: var(--black);
+}
+
+.dashboard-kindness-tile {
+  border-left: 7px solid var(--orange) !important;
+  background: linear-gradient(135deg, #fff8dd, #fffaf0) !important;
+}
+
+.dashboard-kindness-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(0,0,0,.10);
+}
+
+.kindness-paid-info {
+  border-left: 7px solid var(--green);
+  background: linear-gradient(135deg, #f0fff4, #fffaf0) !important;
+}
+
+.status.paidwithkindness {
+  background: #e7fff1;
+  color: #0d6b39;
+  border-color: #9ee6bd;
+}
+
 
 main {
   display: grid;
@@ -500,7 +541,8 @@ select {
     margin: 12px 0;
   }
 
-  .dashboard div {
+  .dashboard div,
+  .dashboard button {
     min-height: 105px;
     padding: 14px;
     border-radius: 18px;
@@ -716,7 +758,7 @@ select {
   width: min(1480px, calc(100% - 32px));
   margin: 0 auto 14px;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -2595,5 +2637,780 @@ select {
   .attendance-mark-mode button {
     padding: 8px 6px;
     font-size: 0.78rem;
+  }
+}
+
+/* =========================
+   KINDNESS ALTERNATIVE / SETTLEMENT
+========================= */
+.kindness-line {
+  display: block;
+  margin-top: 5px;
+  color: #5f4700;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.manage-fees-card .compact-form label:nth-last-of-type(1),
+.manage-fees-card .compact-form label:nth-last-of-type(2) {
+  grid-column: span 2;
+}
+
+@media (max-width: 650px) {
+  .manage-fees-card .compact-form label:nth-last-of-type(1),
+  .manage-fees-card .compact-form label:nth-last-of-type(2) {
+    grid-column: span 1;
+  }
+}
+
+/* =========================
+   SUMMARY RANKED STUDENT LIST
+========================= */
+.ranked-list-note {
+  display: block;
+  margin-top: 4px;
+  color: var(--gray);
+  font-weight: 800;
+}
+
+.top-list-card .ranked-student-list {
+  max-height: min(430px, 58vh);
+  overflow-y: auto;
+  padding-right: 6px;
+  scroll-behavior: smooth;
+}
+
+.rank-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  margin-right: 6px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--yellow);
+  color: var(--black);
+  font-size: .78rem;
+  font-weight: 900;
+}
+
+@media (max-width: 650px) {
+  .top-list-card .ranked-student-list {
+    max-height: 360px;
+  }
+
+  .rank-number {
+    min-width: 34px;
+    padding: 2px 6px;
+    font-size: .72rem;
+  }
+}
+
+/* =========================
+   ACTION TRACKER + KINDNESS BOARD
+========================= */
+.action-tracker-panel {
+  background: rgba(255,255,255,.92);
+  backdrop-filter: blur(12px);
+  padding: 20px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  margin-bottom: 18px;
+}
+
+.action-tracker-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.action-tracker-header h2 {
+  margin-bottom: 4px;
+}
+
+.action-tracker-header p,
+.action-list-title small {
+  color: var(--gray);
+  font-weight: 700;
+}
+
+.action-tracker-header > span {
+  color: var(--orange);
+  font-weight: 900;
+}
+
+.action-tracker-summary {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.action-tracker-summary button {
+  background: #fffaf0;
+  border: 1px solid var(--line);
+  color: var(--black);
+  border-radius: 18px;
+  padding: 12px 10px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.action-tracker-summary button.active,
+.action-tracker-summary button:hover {
+  background: var(--black);
+  color: white;
+}
+
+.action-tracker-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(300px, .8fr);
+  gap: 14px;
+}
+
+.action-list-card,
+.kindness-board-card {
+  background: #fffaf0;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 14px;
+}
+
+.action-list-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.pending-action-list,
+.kindness-board-list {
+  display: grid;
+  gap: 8px;
+  max-height: 310px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.pending-action-item,
+.kindness-board-item {
+  width: 100%;
+  text-align: left;
+  background: white;
+  border: 1px solid var(--line);
+  border-left: 7px solid var(--yellow);
+  border-radius: 16px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.pending-action-item.followup { border-left-color: var(--orange); }
+.pending-action-item.kindness { border-left-color: #8a6d00; }
+.pending-action-item.unpaid { border-left-color: var(--red); }
+.pending-action-item.parent { border-left-color: #7c3aed; }
+
+.pending-action-item span,
+.pending-action-item strong,
+.pending-action-item small,
+.kindness-board-item strong,
+.kindness-board-item small,
+.kindness-board-item em {
+  display: block;
+}
+
+.pending-action-item span {
+  color: #9a6a00;
+  font-size: .76rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  margin-bottom: 3px;
+}
+
+.pending-action-item strong,
+.kindness-board-item strong {
+  font-size: .95rem;
+  margin-bottom: 3px;
+}
+
+.pending-action-item small,
+.kindness-board-item small,
+.kindness-board-item em {
+  color: var(--gray);
+  font-style: normal;
+  font-weight: 700;
+  font-size: .82rem;
+}
+
+.kindness-board-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.kindness-board-summary span {
+  background: #fff4c9;
+  border-radius: 14px;
+  padding: 10px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.kindness-board-item.pending { border-left-color: var(--orange); }
+.kindness-board-item.completed { border-left-color: var(--green); opacity: .9; }
+
+/* =========================
+   STUDENT PROGRESS TIMELINE
+========================= */
+.student-timeline {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.timeline-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  gap: 9px;
+  background: #fffaf0;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 11px;
+}
+
+.timeline-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--yellow);
+  margin-top: 4px;
+  box-shadow: 0 0 0 4px rgba(255,216,61,.22);
+}
+
+.timeline-item.pending-kindness .timeline-dot { background: var(--orange); }
+.timeline-item.overdue .timeline-dot { background: var(--red); }
+
+.timeline-content strong,
+.timeline-content small,
+.timeline-content p {
+  display: block;
+}
+
+.timeline-content small {
+  color: var(--gray);
+  font-weight: 800;
+  margin: 2px 0 6px;
+}
+
+.timeline-content p {
+  font-size: .86rem;
+  margin-top: 5px;
+  color: #4f3b00;
+}
+
+.timeline-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.timeline-chips span {
+  background: #fff4c9;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-weight: 900;
+  font-size: .72rem;
+}
+
+@media (max-width: 900px) {
+  .action-tracker-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .action-tracker-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 650px) {
+  .action-tracker-panel {
+    padding: 14px;
+    border-radius: 20px;
+  }
+
+  .action-tracker-header,
+  .action-list-title {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .action-tracker-summary {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .pending-action-list,
+  .kindness-board-list {
+    max-height: none;
+  }
+}
+
+/* =========================
+   MODAL CENTER + ACTION BOARD FIX
+========================= */
+.modal {
+  align-items: center;
+  justify-items: center;
+  overflow: hidden;
+  padding: 18px;
+}
+
+.modal-card {
+  max-height: calc(100dvh - 36px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-behavior: auto;
+}
+
+#editModal .modal-card,
+.add-violation-card,
+.manage-fees-card {
+  width: min(680px, 100%);
+}
+
+#editModal .modal-actions,
+.add-violation-card .modal-actions,
+.manage-fees-card .modal-actions {
+  box-shadow: 0 -12px 22px rgba(255,255,255,.92);
+}
+
+.action-tracker-launch-panel {
+  background: rgba(255,255,255,.92);
+  backdrop-filter: blur(12px);
+  padding: 18px;
+  border-radius: 24px;
+  border: 1px solid var(--line);
+  box-shadow: 0 12px 28px rgba(0,0,0,.08);
+  margin-bottom: 18px;
+}
+
+.action-tracker-launch-panel .action-tracker-header {
+  margin-bottom: 0;
+}
+
+.action-tracker-launch-panel .summary-btn {
+  min-width: 220px;
+  background: var(--black);
+  color: white;
+}
+
+.action-tracker-modal-card {
+  width: min(1040px, 100%);
+}
+
+.action-tracker-modal-card .action-tracker-layout {
+  max-height: min(62vh, 560px);
+}
+
+.action-tracker-modal-card .pending-action-list,
+.action-tracker-modal-card .kindness-board-list {
+  max-height: min(52vh, 440px);
+}
+
+@media (max-width: 750px) {
+  .modal {
+    padding: 10px;
+  }
+
+  .modal-card {
+    border-radius: 18px;
+    padding: 14px;
+    max-height: calc(100dvh - 20px);
+  }
+
+  #editModal .modal-card,
+  .add-violation-card,
+  .manage-fees-card,
+  .action-tracker-modal-card {
+    width: 100%;
+  }
+
+  .action-tracker-launch-panel {
+    padding: 14px;
+    border-radius: 20px;
+  }
+
+  .action-tracker-launch-panel .action-tracker-header {
+    display: grid;
+    gap: 12px;
+  }
+
+  .action-tracker-launch-panel .summary-btn {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .action-tracker-modal-card .action-tracker-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .action-tracker-modal-card .action-tracker-layout {
+    grid-template-columns: 1fr;
+    max-height: none;
+  }
+
+  .action-tracker-modal-card .pending-action-list,
+  .action-tracker-modal-card .kindness-board-list {
+    max-height: 260px;
+  }
+}
+
+@media (max-height: 640px) {
+  .modal {
+    align-items: start;
+  }
+}
+
+/* =========================
+   ADD VIOLATION OPTIONAL DETAILS FIX
+========================= */
+.add-violation-card {
+  width: min(860px, 100%);
+}
+
+.advanced-fields,
+.advanced-fields[open] {
+  display: block;
+  grid-column: 1 / -1;
+  padding: 14px;
+  border-radius: 18px;
+}
+
+.advanced-fields summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0;
+  padding: 2px 0;
+}
+
+.advanced-fields[open] summary {
+  margin-bottom: 12px;
+}
+
+.advanced-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.advanced-fields-grid label {
+  display: block;
+  margin: 0;
+  font-weight: 900;
+  color: var(--black);
+}
+
+.advanced-fields-grid label > input,
+.advanced-fields-grid label > select,
+.advanced-fields-grid label > textarea {
+  margin-top: 6px;
+}
+
+.advanced-fields-grid .wide-field {
+  grid-column: 1 / -1;
+}
+
+.advanced-fields-grid textarea {
+  min-height: 86px;
+  resize: vertical;
+}
+
+@media (max-width: 650px) {
+  .advanced-fields-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .advanced-fields,
+  .advanced-fields[open] {
+    padding: 12px;
+  }
+}
+
+/* =========================
+   KINDNESS SETTLEMENT DASHBOARD
+========================= */
+.kindness-settlement-modal-card {
+  width: min(820px, 100%);
+}
+
+.kindness-settlement-summary,
+.kindness-settlement-counts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 12px 0;
+}
+
+
+.kindness-breakdown-title {
+  margin: 18px 0 6px;
+  font-weight: 950;
+  color: #5f4700;
+  font-size: 1rem;
+}
+
+.kindness-settlement-summary span,
+.kindness-settlement-counts span {
+  background: #fff4c9;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px 12px;
+  font-weight: 900;
+}
+
+.kindness-settlement-list {
+  display: grid;
+  gap: 10px;
+  max-height: 58vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.kindness-settlement-item {
+  width: 100%;
+  text-align: left;
+  background: #fffaf0;
+  border: 1px solid var(--line);
+  border-left: 7px solid var(--orange);
+  border-radius: 16px;
+  padding: 12px;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.kindness-settlement-item.completed {
+  border-left-color: var(--green);
+}
+
+.kindness-settlement-item strong,
+.kindness-settlement-item small,
+.kindness-settlement-item em,
+.kindness-settlement-item span {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.kindness-settlement-item em {
+  color: #6d5100;
+}
+
+@media (max-width: 650px) {
+  .kindness-settlement-summary,
+  .kindness-settlement-counts {
+    grid-template-columns: 1fr;
+  }
+
+  .kindness-settlement-list {
+    max-height: 64vh;
+  }
+}
+
+/* =========================
+   MAIN SETTLEMENT FIELD FIX
+========================= */
+.main-form-field {
+  display: block;
+  margin: 0;
+  font-weight: 900;
+  color: var(--black);
+}
+
+.main-form-field > select,
+.main-form-field > input,
+.main-form-field > textarea {
+  margin-top: 6px;
+}
+
+.settlement-main-field {
+  background: linear-gradient(135deg, #fff9df, #fffdf4);
+  border: 1px solid rgba(255,216,61,.55);
+  border-radius: 18px;
+  padding: 10px;
+}
+
+.settlement-main-field select {
+  margin-bottom: 0;
+}
+
+@media (max-width: 650px) {
+  .settlement-main-field {
+    padding: 9px;
+    border-radius: 15px;
+  }
+}
+
+/* =========================
+   SIMPLIFIED MANAGE FEES UI
+========================= */
+.manage-fees-card {
+  width: min(860px, 100%);
+}
+
+.simplified-fees-form {
+  grid-template-columns: 1.3fr .55fr 1.3fr .8fr;
+  gap: 12px;
+}
+
+.simplified-fees-form .fee-advanced-fields {
+  grid-column: 1 / -1;
+  border: 1px dashed rgba(17, 24, 39, .15);
+  border-radius: 16px;
+  padding: 10px 12px;
+  background: rgba(255,255,255,.55);
+}
+
+.simplified-fees-form .fee-advanced-fields summary {
+  cursor: pointer;
+  font-weight: 900;
+  color: var(--gray);
+}
+
+.fee-advanced-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.small-guide {
+  font-size: .82rem;
+  margin-top: 8px;
+  color: var(--gray);
+}
+
+.advanced-fee-note {
+  opacity: .62;
+  font-size: .72rem !important;
+}
+
+@media (max-width: 900px) {
+  .simplified-fees-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 650px) {
+  .simplified-fees-form,
+  .fee-advanced-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Attendance tools: hidden but easy to open, placed before checking list */
+.attendance-tools-panel {
+  margin: 12px 0 12px;
+  border: 1px solid rgba(161, 98, 7, 0.18);
+  border-radius: 16px;
+  background: linear-gradient(135deg, #fffdf5, #fff7c2);
+  overflow: hidden;
+}
+
+.attendance-tools-panel summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #111827;
+  list-style: none;
+}
+
+.attendance-tools-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+.attendance-tools-panel summary span {
+  font-weight: 950;
+  font-size: 0.95rem;
+}
+
+.attendance-tools-panel summary small {
+  color: #92400e;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.attendance-tools-panel summary::after {
+  content: "Open";
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #111111;
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 950;
+}
+
+.attendance-tools-panel[open] summary {
+  border-bottom: 1px solid rgba(161, 98, 7, 0.16);
+}
+
+.attendance-tools-panel[open] summary::after {
+  content: "Hide";
+  background: #facc15;
+  color: #111111;
+}
+
+.attendance-tools-panel .attendance-extra-toolbar,
+.attendance-tools-panel .attendance-summary,
+.attendance-tools-panel .attendance-board {
+  margin-left: 12px;
+  margin-right: 12px;
+}
+
+.attendance-tools-panel .attendance-extra-toolbar {
+  margin-top: 12px;
+}
+
+.attendance-tools-panel .attendance-board {
+  margin-bottom: 12px;
+}
+
+@media (max-width: 650px) {
+  .attendance-tools-panel summary {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    padding: 10px 12px;
+  }
+
+  .attendance-tools-panel summary span {
+    font-size: 0.86rem;
+  }
+
+  .attendance-tools-panel summary small {
+    display: none;
+  }
+
+  .attendance-tools-panel summary::after {
+    padding: 5px 10px;
+    font-size: 0.7rem;
+  }
+
+  .attendance-tools-panel .attendance-extra-toolbar,
+  .attendance-tools-panel .attendance-summary,
+  .attendance-tools-panel .attendance-board {
+    margin-left: 8px;
+    margin-right: 8px;
   }
 }

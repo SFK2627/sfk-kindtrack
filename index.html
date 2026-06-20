@@ -63,6 +63,7 @@
   <button type="button" id="quickAddViolationBtn">➕ Add Violation</button>
   <button type="button" id="quickAttendanceBtn">📅 Attendance</button>
   <button type="button" id="quickManageFeesBtn">⚙ Manage Fees</button>
+  <button type="button" id="quickActionBoardsBtn">📋 Action Boards</button>
   <button type="button" id="quickSummaryBtn">📊 Summary</button>
   <button type="button" id="quickPrintAllBtn">🖨 Print All</button>
 </section>
@@ -70,9 +71,81 @@
 <section class="dashboard">
   <div>📌 Total Violations <b id="totalViolations">0</b></div>
   <div>⚠️ Students with Alerts <b id="alertCount">0</b></div>
-  <div class="fee-info">💰 Total Fees <b id="totalFees">₱0</b></div>
+  <div class="fee-info">💵 To Pay with Cash <b id="totalFees">₱0</b></div>
+  <button type="button" id="kindnessSettlementTile" class="dashboard-kindness-tile">
+    🤝 To Settle with Kindness <b id="kindnessSettlementCount">0</b>
+  </button>
+  <div class="kindness-paid-info">🤝 Paid with Kindness <b id="paidWithKindnessCount">0</b></div>
   <div class="fee-info">✅ Collected Funds <b id="collectedFees">₱0</b></div>
 </section>
+
+<div class="modal hidden" id="kindnessSettlementModal">
+  <div class="modal-card kindness-settlement-modal-card">
+    <div class="modal-title-row">
+      <div>
+        <h2>🤝 To Settle with Kindness</h2>
+        <p class="modal-subtitle">Records where settlement type is Kindness Alternative Payment.</p>
+      </div>
+      <button type="button" id="closeKindnessSettlementModal" class="modal-x">×</button>
+    </div>
+
+    <div id="kindnessSettlementSummary" class="kindness-settlement-summary">
+      <span>Total: 0</span>
+      <span>Pending: 0</span>
+      <span>Completed: 0</span>
+    </div>
+
+    <div id="kindnessSettlementList" class="kindness-settlement-list">
+      <p class="empty-message">No kindness alternative settlements yet.</p>
+    </div>
+  </div>
+</div>
+
+<div class="modal hidden" id="actionTrackerModal">
+  <div class="modal-card action-tracker-modal-card">
+    <div class="modal-title-row">
+      <div>
+        <h2>📋 Pending Actions & Kindness Board</h2>
+        <p class="modal-subtitle">Follow-ups, kindness payments, unpaid records, and parent-contact tasks.</p>
+      </div>
+      <button type="button" id="closeActionTrackerModal" class="modal-x">×</button>
+    </div>
+
+    <div id="actionTrackerSummary" class="action-tracker-summary">
+      <button type="button" data-action-filter="all">All Actions: 0</button>
+      <button type="button" data-action-filter="followup">Follow-ups: 0</button>
+      <button type="button" data-action-filter="kindness">Kindness Pending: 0</button>
+      <button type="button" data-action-filter="unpaid">Unpaid: 0</button>
+      <button type="button" data-action-filter="parent">Parent Contact: 0</button>
+    </div>
+
+    <div class="action-tracker-layout">
+      <div class="action-list-card">
+        <div class="action-list-title">
+          <strong>Needs Action</strong>
+          <small id="actionTrackerLabel">All pending items</small>
+        </div>
+        <div id="pendingActionList" class="pending-action-list">
+          <p class="empty-message">No pending actions yet. 🐨</p>
+        </div>
+      </div>
+
+      <div class="kindness-board-card">
+        <div class="action-list-title">
+          <strong>Kindness Alternative Payment Board</strong>
+          <small>Pending and completed restorative tasks</small>
+        </div>
+        <div id="kindnessBoardSummary" class="kindness-board-summary">
+          <span>Pending: 0</span>
+          <span>Completed: 0</span>
+        </div>
+        <div id="kindnessBoardList" class="kindness-board-list">
+          <p class="empty-message">No kindness alternative payments yet.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <section class="term-panel">
   <div>
@@ -138,6 +211,73 @@
     View Only Mode shows the daily attendance summary and board only.
   </p>
 
+  <details class="attendance-mobile-tools attendance-tools-panel">
+    <summary>
+      <span>🔎 Search, Filter, Sort & Summary</span>
+      <small>Open only when needed</small>
+    </summary>
+
+    <div class="attendance-toolbar attendance-extra-toolbar">
+      <label>
+        Search
+        <input
+          type="text"
+          id="attendanceSearch"
+          placeholder="Search student..."
+          autocomplete="off"
+        />
+      </label>
+
+      <label>
+        Filter
+        <select id="attendanceFilter">
+          <option value="all">All Students</option>
+          <option value="Present">Present</option>
+          <option value="Absent">Absent</option>
+          <option value="Excused">Excused</option>
+          <option value="Tardy">Tardy</option>
+        </select>
+      </label>
+
+      <label>
+        Sort
+        <select id="attendanceSort">
+          <option value="az">A-Z</option>
+          <option value="boysGirls">Boys first, then Girls</option>
+          <option value="exceptions">Needs attention first</option>
+          <option value="Present">Present first</option>
+          <option value="Absent">Absent first</option>
+          <option value="Excused">Excused first</option>
+          <option value="Tardy">Tardy first</option>
+        </select>
+      </label>
+    </div>
+
+    <div id="attendanceSummary" class="attendance-summary">
+      <span>Present: 0</span>
+      <span>Absent: 0</span>
+      <span>Excused: 0</span>
+      <span>Tardy: 0</span>
+      <span>Total: 0</span>
+    </div>
+
+    <div class="attendance-board">
+      <div class="attendance-board-header">
+        <div>
+          <strong id="attendanceBoardTitle">Selected Date Attendance</strong>
+          <span id="attendanceBoardDate"></span>
+        </div>
+        <label class="show-all-toggle">
+          <input type="checkbox" id="attendanceShowAll" />
+          Show All Students
+        </label>
+      </div>
+      <div id="attendanceBoardList" class="attendance-board-list">
+        <p class="empty-message">Choose a date to view attendance.</p>
+      </div>
+    </div>
+  </details>
+
   <p class="admin-attendance-note admin-only">
     All students are Present by default. Choose a status, then tap student names.
   </p>
@@ -167,72 +307,6 @@
     </div>
     <p id="attendanceMessage" class="empty-message hidden"></p>
   </div>
-
-  <details class="attendance-mobile-tools" open>
-    <summary>More attendance tools</summary>
-
-  <div class="attendance-toolbar attendance-extra-toolbar">
-
-    <label>
-      Search
-      <input
-        type="text"
-        id="attendanceSearch"
-        placeholder="Search student..."
-        autocomplete="off"
-      />
-    </label>
-
-    <label>
-      Filter
-      <select id="attendanceFilter">
-        <option value="all">All Students</option>
-        <option value="Present">Present</option>
-        <option value="Absent">Absent</option>
-        <option value="Excused">Excused</option>
-        <option value="Tardy">Tardy</option>
-      </select>
-    </label>
-
-    <label>
-      Sort
-      <select id="attendanceSort">
-        <option value="az">A-Z</option>
-        <option value="boysGirls">Boys first, then Girls</option>
-        <option value="exceptions">Needs attention first</option>
-        <option value="Present">Present first</option>
-        <option value="Absent">Absent first</option>
-        <option value="Excused">Excused first</option>
-        <option value="Tardy">Tardy first</option>
-      </select>
-    </label>
-  </div>
-
-  <div id="attendanceSummary" class="attendance-summary">
-    <span>Present: 0</span>
-    <span>Absent: 0</span>
-    <span>Excused: 0</span>
-    <span>Tardy: 0</span>
-    <span>Total: 0</span>
-  </div>
-
-  <div class="attendance-board">
-    <div class="attendance-board-header">
-      <div>
-        <strong id="attendanceBoardTitle">Selected Date Attendance</strong>
-        <span id="attendanceBoardDate"></span>
-      </div>
-      <label class="show-all-toggle">
-        <input type="checkbox" id="attendanceShowAll" />
-        Show All Students
-      </label>
-    </div>
-    <div id="attendanceBoardList" class="attendance-board-list">
-      <p class="empty-message">Choose a date to view attendance.</p>
-    </div>
-  </div>
-
-  </details>
 
   <details class="monthly-attendance">
     <summary>Monthly Attendance Summary</summary>
@@ -290,8 +364,18 @@
       <select id="addStatus" required>
         <option value="Unpaid">Unpaid</option>
         <option value="Paid">Paid</option>
+        <option value="Paid with Kindness">Paid with Kindness</option>
         <option value="Waived">Waived</option>
       </select>
+
+      <label class="main-form-field settlement-main-field">
+        Settlement Type
+        <select id="addSettlementType">
+          <option value="Cash">Cash</option>
+          <option value="Kindness Alternative">Kindness Alternative Payment</option>
+          <option value="Waived">Waived</option>
+        </select>
+      </label>
 
       <select id="addActionTaken">
         <option value="Verbal Reminder">Verbal Reminder</option>
@@ -304,33 +388,72 @@
 
       <input type="date" id="addDate" required />
 
-      <details class="advanced-fields">
+      <details class="advanced-fields" id="addAdvancedFields">
         <summary>Optional guidance details</summary>
 
-        <input type="date" id="addFollowUpDate" title="Follow-up Date" />
+        <div class="advanced-fields-grid">
+          <label>
+            Follow-up Date
+            <input type="date" id="addFollowUpDate" />
+          </label>
 
-        <select id="addFollowUpStatus">
-          <option value="Pending">Follow-up: Pending</option>
-          <option value="Improved">Follow-up: Improved</option>
-          <option value="Repeated">Follow-up: Repeated</option>
-          <option value="Resolved">Follow-up: Resolved</option>
-        </select>
+          <label>
+            Follow-up Status
+            <select id="addFollowUpStatus">
+              <option value="Pending">Pending</option>
+              <option value="Improved">Improved</option>
+              <option value="Repeated">Repeated</option>
+              <option value="Resolved">Resolved</option>
+            </select>
+          </label>
 
-        <select id="addParentContacted">
-          <option value="No">Parent Contacted: No</option>
-          <option value="Yes">Parent Contacted: Yes</option>
-        </select>
+          <label>
+            Parent Contacted
+            <select id="addParentContacted">
+              <option value="No">No</option>
+              <option value="Yes">Yes</option>
+            </select>
+          </label>
 
-        <textarea
-          id="addReflection"
-          placeholder="Reflection / commitment optional..."
-        ></textarea>
+          <label class="wide-field">
+            Kindness Task
+            <input
+              type="text"
+              id="addKindnessTask"
+              placeholder="Kindness alternative payment task optional..."
+            />
+          </label>
 
-        <input
-          type="text"
-          id="addNotes"
-          placeholder="Notes optional..."
-        />
+          <label>
+            Kindness Status
+            <select id="addKindnessStatus">
+              <option value="Pending">Pending</option>
+              <option value="Completed">Completed</option>
+            </select>
+          </label>
+
+          <label>
+            Kindness Completed Date
+            <input type="date" id="addKindnessCompletedDate" />
+          </label>
+
+          <label class="wide-field">
+            Reflection / Commitment
+            <textarea
+              id="addReflection"
+              placeholder="Student reflection or commitment optional..."
+            ></textarea>
+          </label>
+
+          <label class="wide-field">
+            Notes
+            <input
+              type="text"
+              id="addNotes"
+              placeholder="Notes optional..."
+            />
+          </label>
+        </div>
       </details>
 
       <button type="submit">Save Violation</button>
@@ -378,12 +501,18 @@
     <select id="violationFilter">
       <option value="all">All Violations</option>
       <option value="paid">Paid</option>
+      <option value="paidwithkindness">Paid with Kindness</option>
       <option value="unpaid">Unpaid</option>
       <option value="waived">Waived</option>
     </select>
 
     <div id="violationList">
       <p class="empty-message">Choose a student to view records. 🐨</p>
+    </div>
+
+    <h3>Student Progress Timeline</h3>
+    <div id="studentTimeline" class="student-timeline">
+      <p class="empty-message">Choose a student to view timeline. 🐨</p>
     </div>
   </section>
 
@@ -417,7 +546,7 @@
       <button type="button" id="closeManageFeesModal" class="modal-x">×</button>
     </div>
 
-    <form id="singleViolationTypeForm" class="add-form compact-form">
+    <form id="singleViolationTypeForm" class="add-form compact-form simplified-fees-form">
       <label>
         Violation Name
         <input type="text" id="violationTypeNameInput" placeholder="Example: Tardiness" required />
@@ -427,20 +556,38 @@
         <input type="number" id="violationTypeFeeInput" min="0" step="1" value="0" required />
       </label>
       <label>
-        Category
-        <input type="text" id="violationTypeCategoryInput" placeholder="Example: Punctuality" />
-      </label>
-      <label>
         Alert Threshold
         <input type="number" id="violationTypeThresholdInput" min="1" step="1" value="3" />
+        <small class="field-hint">How many times before this violation triggers an alert.</small>
       </label>
+      <label>
+        Kindness Alternative Payment
+        <input type="text" id="violationTypeKindnessInput" placeholder="Example: Assist classroom clean-up" />
+      </label>
+      <label>
+        Kindness Value
+        <input type="text" id="violationTypeKindnessValueInput" placeholder="Example: 1 task / 5 minutes" />
+      </label>
+
+      <details class="fee-advanced-fields category-only-advanced">
+        <summary>Optional category</summary>
+        <div class="fee-advanced-grid">
+          <label>
+            Category
+            <input type="text" id="violationTypeCategoryInput" placeholder="Optional: Punctuality / Uniform" />
+          </label>
+        </div>
+        <p class="guide-text small-guide">Category is only for grouping. Alert Threshold stays visible because it controls when alerts appear.</p>
+      </details>
+
       <button type="submit">Save Violation Type</button>
     </form>
 
     <div class="bulk-import-box">
       <h3>Bulk Add</h3>
-      <p class="guide-text">Format per line: Name | Fee | Category | Threshold</p>
-      <textarea id="bulkViolationTypesInput" rows="7" placeholder="No ID | 10 | Uniform | 3&#10;Tardiness | 5 | Punctuality | 3&#10;No Assignment | 5 | Responsibility | 3"></textarea>
+      <p class="guide-text">Simple format per line: Name | Fee | Alert Threshold | Kindness Alternative Payment | Kindness Value</p>
+      <textarea id="bulkViolationTypesInput" rows="7" placeholder="No ID | 10 | 3 | Reflection + arrange chairs | 1 task&#10;Tardiness | 20 | 3 | Magayos ng Chairs | 1 Day&#10;No Assignment | 5 | 2 | Reflection + help organize materials | 1 task"></textarea>
+      <p class="guide-text small-guide">Old formats still accepted: Name | Fee | Kindness Alternative Payment | Kindness Value, or Name | Fee | Category | Threshold | Kindness Alternative Payment | Kindness Value</p>
       <button type="button" id="bulkSaveViolationTypesBtn">Import All</button>
     </div>
 
@@ -466,12 +613,18 @@
     <select id="modalViolationFilter">
       <option value="all">All Violations</option>
       <option value="paid">Paid</option>
+      <option value="paidwithkindness">Paid with Kindness</option>
       <option value="unpaid">Unpaid</option>
       <option value="waived">Waived</option>
     </select>
 
     <div id="modalViolationList">
       <p class="empty-message">No records found.</p>
+    </div>
+
+    <h3>Student Progress Timeline</h3>
+    <div id="modalStudentTimeline" class="student-timeline">
+      <p class="empty-message">No timeline yet.</p>
     </div>
   </div>
 </div>
@@ -490,8 +643,28 @@
       <select id="editStatus" required>
         <option value="Unpaid">Unpaid</option>
         <option value="Paid">Paid</option>
+        <option value="Paid with Kindness">Paid with Kindness</option>
         <option value="Waived">Waived</option>
       </select>
+
+      <label>Settlement Type</label>
+      <select id="editSettlementType">
+        <option value="Cash">Cash</option>
+        <option value="Kindness Alternative">Kindness Alternative Payment</option>
+        <option value="Waived">Waived</option>
+      </select>
+
+      <label>Kindness Task</label>
+      <input type="text" id="editKindnessTask" placeholder="Kindness task optional..." />
+
+      <label>Kindness Status</label>
+      <select id="editKindnessStatus">
+        <option value="Pending">Pending</option>
+        <option value="Completed">Completed</option>
+      </select>
+
+      <label>Kindness Completed Date</label>
+      <input type="date" id="editKindnessCompletedDate" />
 
       <label>Action Taken</label>
       <select id="editActionTaken">

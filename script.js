@@ -5,8 +5,10 @@ let students = [];
 let selectedStudent = null;
 let feesVisible = true;
 let selectedTerm = "all";
+let activeActionFilter = "all";
 let attendanceRecords = [];
 let attendanceByDate = {};
+let attendanceSavedSnapshotByDate = {};
 let attendanceMarkMode = "Absent";
 let viewerCanSeeFees = localStorage.getItem("sfkViewerCanSeeFees") === "true";
 const ATTENDANCE_STATUSES = ["Present", "Absent", "Excused", "Tardy"];
@@ -42,8 +44,24 @@ const viewerFeeAccessToggle = document.getElementById("viewerFeeAccessToggle");
 const quickAddViolationBtn = document.getElementById("quickAddViolationBtn");
 const quickAttendanceBtn = document.getElementById("quickAttendanceBtn");
 const quickManageFeesBtn = document.getElementById("quickManageFeesBtn");
+const quickActionBoardsBtn = document.getElementById("quickActionBoardsBtn");
 const quickSummaryBtn = document.getElementById("quickSummaryBtn");
 const quickPrintAllBtn = document.getElementById("quickPrintAllBtn");
+const openActionTrackerModalBtn = document.getElementById("openActionTrackerModalBtn");
+const actionTrackerModal = document.getElementById("actionTrackerModal");
+const closeActionTrackerModal = document.getElementById("closeActionTrackerModal");
+const actionTrackerSummary = document.getElementById("actionTrackerSummary");
+const pendingActionList = document.getElementById("pendingActionList");
+const actionTrackerLabel = document.getElementById("actionTrackerLabel");
+const kindnessBoardSummary = document.getElementById("kindnessBoardSummary");
+const kindnessBoardList = document.getElementById("kindnessBoardList");
+const kindnessSettlementTile = document.getElementById("kindnessSettlementTile");
+const kindnessSettlementCount = document.getElementById("kindnessSettlementCount");
+const paidWithKindnessCount = document.getElementById("paidWithKindnessCount");
+const kindnessSettlementModal = document.getElementById("kindnessSettlementModal");
+const closeKindnessSettlementModal = document.getElementById("closeKindnessSettlementModal");
+const kindnessSettlementSummary = document.getElementById("kindnessSettlementSummary");
+const kindnessSettlementList = document.getElementById("kindnessSettlementList");
 
 const studentList = document.getElementById("studentList");
 const violationList = document.getElementById("violationList");
@@ -54,6 +72,8 @@ const modalSelectedName = document.getElementById("modalSelectedName");
 const modalStudentSummary = document.getElementById("modalStudentSummary");
 const modalViolationFilter = document.getElementById("modalViolationFilter");
 const modalViolationList = document.getElementById("modalViolationList");
+const studentTimeline = document.getElementById("studentTimeline");
+const modalStudentTimeline = document.getElementById("modalStudentTimeline");
 const closeStudentDetailsModal = document.getElementById("closeStudentDetailsModal");
 const studentSort = document.getElementById("studentSort");
 const studentSearch = document.getElementById("studentSearch");
@@ -69,6 +89,8 @@ const violationTypeNameInput = document.getElementById("violationTypeNameInput")
 const violationTypeFeeInput = document.getElementById("violationTypeFeeInput");
 const violationTypeCategoryInput = document.getElementById("violationTypeCategoryInput");
 const violationTypeThresholdInput = document.getElementById("violationTypeThresholdInput");
+const violationTypeKindnessInput = document.getElementById("violationTypeKindnessInput");
+const violationTypeKindnessValueInput = document.getElementById("violationTypeKindnessValueInput");
 const bulkViolationTypesInput = document.getElementById("bulkViolationTypesInput");
 const bulkSaveViolationTypesBtn = document.getElementById("bulkSaveViolationTypesBtn");
 const manageFeesList = document.getElementById("manageFeesList");
@@ -120,6 +142,11 @@ const addReflection = document.getElementById("addReflection");
 const addFollowUpDate = document.getElementById("addFollowUpDate");
 const addFollowUpStatus = document.getElementById("addFollowUpStatus");
 const addParentContacted = document.getElementById("addParentContacted");
+const addSettlementType = document.getElementById("addSettlementType");
+const addKindnessTask = document.getElementById("addKindnessTask");
+const addKindnessStatus = document.getElementById("addKindnessStatus");
+const addKindnessCompletedDate = document.getElementById("addKindnessCompletedDate");
+const addAdvancedFields = document.getElementById("addAdvancedFields");
 const addDate = document.getElementById("addDate");
 const addNotes = document.getElementById("addNotes");
 const addMessage = document.getElementById("addMessage");
@@ -129,6 +156,10 @@ const editForm = document.getElementById("editViolationForm");
 const editRecordId = document.getElementById("editRecordId");
 const editViolationType = document.getElementById("editViolationType");
 const editStatus = document.getElementById("editStatus");
+const editSettlementType = document.getElementById("editSettlementType");
+const editKindnessTask = document.getElementById("editKindnessTask");
+const editKindnessStatus = document.getElementById("editKindnessStatus");
+const editKindnessCompletedDate = document.getElementById("editKindnessCompletedDate");
 const editActionTaken = document.getElementById("editActionTaken");
 const editReflection = document.getElementById("editReflection");
 const editFollowUpDate = document.getElementById("editFollowUpDate");
@@ -313,7 +344,9 @@ async function loadDataFromSheets() {
       name: v.ViolationName,
       fee: Number(v.Fee) || 0,
       threshold: Number(v.AlertThreshold) || 3,
-      category: v.Category || ""
+      category: v.Category || "",
+      kindnessAlternative: v.KindnessAlternative || v["Kindness Alternative"] || "",
+      kindnessValue: v.KindnessValue || v["Kindness Value"] || ""
     }));
 
     const violationsByStudent = {};
@@ -334,8 +367,14 @@ async function loadDataFromSheets() {
         followUpDate: formatDate(v.FollowUpDate || v["Follow-up Date"] || ""),
         followUpStatus: v.FollowUpStatus || v["Follow-up Status"] || "Pending",
         parentContacted: v.ParentContacted || v["Parent Contacted"] || "No",
+        settlementType: v.SettlementType || v["Settlement Type"] || "Cash",
+        kindnessTask: v.KindnessTask || v["Kindness Task"] || "",
+        kindnessStatus: v.KindnessStatus || v["Kindness Status"] || "Pending",
+        kindnessCompletedDate: formatDate(v.KindnessCompletedDate || v["Kindness Completed Date"] || ""),
         notes: v.Notes || ""
       };
+
+      normalizeLoadedKindnessRecord(item);
 
       if (!violationsByStudent[v.StudentID]) {
         violationsByStudent[v.StudentID] = [];
@@ -370,6 +409,7 @@ async function loadDataFromSheets() {
     }));
 
     rebuildAttendanceIndex();
+    attendanceSavedSnapshotByDate = {};
 
     if (selectedStudent) {
       selectedStudent = students.find(s => s.id === selectedStudent.id) || null;
@@ -391,6 +431,7 @@ function renderAll() {
   renderDashboard();
   renderTermSummary();
   renderAlertCenter();
+  renderActionTracker();
   renderStudents();
   renderFeeList();
   renderManageFeesList();
@@ -453,6 +494,23 @@ function showToast(message) {
   setTimeout(() => {
     toast.classList.remove("show");
   }, 2500);
+}
+
+function openModal(modal) {
+  if (!modal) return;
+
+  modal.classList.remove("hidden");
+
+  requestAnimationFrame(() => {
+    modal.scrollTop = 0;
+    const card = modal.querySelector(".modal-card");
+    if (card) card.scrollTop = 0;
+  });
+}
+
+function closeModal(modal) {
+  if (!modal) return;
+  modal.classList.add("hidden");
 }
 
 function applyFeeVisibility() {
@@ -557,6 +615,186 @@ function getVisibleViolations(student) {
   );
 }
 
+function normalizeStatusText(value) {
+  return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function isPaidWithKindnessStatus(value) {
+  const status = normalizeStatusText(value);
+  return status === "paid with kindness" ||
+    status === "paid thru kindness" ||
+    status === "paid through kindness" ||
+    (status.includes("paid") && status.includes("kindness"));
+}
+
+function isPaidStatus(value) {
+  return normalizeStatusText(value) === "paid";
+}
+
+function isUnpaidStatus(value) {
+  return normalizeStatusText(value) === "unpaid";
+}
+
+function isWaivedStatus(value) {
+  return normalizeStatusText(value) === "waived";
+}
+
+function getStatusFilterKey(value) {
+  if (isPaidWithKindnessStatus(value)) return "paidwithkindness";
+  if (isPaidStatus(value)) return "paid";
+  if (isUnpaidStatus(value)) return "unpaid";
+  if (isWaivedStatus(value)) return "waived";
+  return normalizeStatusText(value).replace(/[^a-z0-9]+/g, "");
+}
+
+function getStatusClass(value) {
+  return getStatusFilterKey(value) || "unknown";
+}
+
+function isKindnessSettlementType(value) {
+  return String(value || "").trim().toLowerCase().includes("kindness");
+}
+
+function isCashFeeRecord(violation) {
+  return !isKindnessSettlementType(violation && violation.settlementType) &&
+    !isPaidWithKindnessStatus(violation && violation.status);
+}
+
+function getMonetaryFee(violation) {
+  return isCashFeeRecord(violation) ? (Number(violation && violation.fee) || 0) : 0;
+}
+
+function getFeeDisplay(violation) {
+  if (!violation) return "₱0";
+  if (isKindnessRecord(violation)) return "Kindness Alternative";
+  return `₱${Number(violation.fee) || 0}`;
+}
+
+function getPaidWithKindnessCount(violations) {
+  return (violations || []).filter(v => isPaidWithKindnessStatus(v.status) || isKindnessCompleted(v)).length;
+}
+
+function getSuggestedKindnessTaskForViolationName(violationName) {
+  const selectedType = violationFees.find(item => item.name === violationName);
+  if (!selectedType || !selectedType.kindnessAlternative) return "";
+
+  return `${selectedType.kindnessAlternative}${selectedType.kindnessValue ? ` (${selectedType.kindnessValue})` : ""}`;
+}
+
+function getEffectiveKindnessTask(violation) {
+  if (!violation) return "";
+  return violation.kindnessTask || getSuggestedKindnessTaskForViolationName(violation.type) || "";
+}
+
+function getEffectiveKindnessStatus(violation) {
+  if (!violation) return "";
+  if (isPaidWithKindnessStatus(violation.status)) return "Completed";
+  if (isResolvedStatus(violation.kindnessStatus)) return "Completed";
+  if (violation.kindnessCompletedDate) return "Completed";
+  return violation.kindnessStatus || "Pending";
+}
+
+function getEffectiveKindnessCompletedDate(violation) {
+  if (!violation) return "";
+  return formatDate(violation.kindnessCompletedDate || "");
+}
+
+function isKindnessCompleted(violation) {
+  return isResolvedStatus(getEffectiveKindnessStatus(violation));
+}
+
+function normalizeLoadedKindnessRecord(violation) {
+  if (!violation) return violation;
+
+  if (isPaidWithKindnessStatus(violation.status)) {
+    violation.settlementType = violation.settlementType && isKindnessSettlementType(violation.settlementType)
+      ? violation.settlementType
+      : "Kindness Alternative";
+    violation.kindnessStatus = "Completed";
+  }
+
+  if (isKindnessRecord(violation)) {
+    if (!violation.kindnessTask) {
+      violation.kindnessTask = getSuggestedKindnessTaskForViolationName(violation.type) || "";
+    }
+    if (violation.kindnessCompletedDate && !isResolvedStatus(violation.kindnessStatus)) {
+      violation.kindnessStatus = "Completed";
+    }
+  }
+
+  return violation;
+}
+
+function syncKindnessTaskForForm(settlementElement, violationElement, taskElement) {
+  if (!settlementElement || !violationElement || !taskElement) return;
+
+  if (!isKindnessSettlementType(settlementElement.value)) return;
+
+  const suggestedTask = getSuggestedKindnessTaskForViolationName(violationElement.value);
+  if (!suggestedTask) return;
+
+  if (!taskElement.value.trim() || taskElement.dataset.autoSuggested === "true") {
+    taskElement.value = suggestedTask;
+    taskElement.dataset.autoSuggested = "true";
+  }
+}
+
+function markKindnessTaskAsCustom(taskElement) {
+  if (!taskElement) return;
+  taskElement.dataset.autoSuggested = "false";
+}
+
+function syncKindnessCompletedDateForStatus(kindnessStatusElement, completedDateElement) {
+  if (!kindnessStatusElement || !completedDateElement) return;
+
+  if (isResolvedStatus(kindnessStatusElement.value) && !completedDateElement.value) {
+    completedDateElement.value = getTodayISO();
+  }
+}
+
+function applyPaidWithKindnessStatus(statusElement, settlementElement, violationElement, taskElement, kindnessStatusElement, completedDateElement, advancedElement) {
+  if (!statusElement || !isPaidWithKindnessStatus(statusElement.value)) return;
+
+  if (settlementElement) {
+    settlementElement.value = "Kindness Alternative";
+  }
+
+  if (advancedElement) {
+    advancedElement.open = true;
+  }
+
+  if (taskElement) {
+    taskElement.dataset.autoSuggested = "true";
+  }
+
+  syncKindnessTaskForForm(settlementElement, violationElement, taskElement);
+
+  if (kindnessStatusElement) {
+    kindnessStatusElement.value = "Completed";
+  }
+
+  if (completedDateElement && !completedDateElement.value) {
+    completedDateElement.value = getTodayISO();
+  }
+}
+
+function getKindnessSettlementRecords() {
+  const items = [];
+
+  students.forEach(student => {
+    getVisibleViolations(student).forEach(violation => {
+      if (!isKindnessRecord(violation)) return;
+      items.push({ student, violation });
+    });
+  });
+
+  return items.sort((a, b) =>
+    String(a.violation.kindnessStatus || "Pending").localeCompare(String(b.violation.kindnessStatus || "Pending")) ||
+    a.student.name.localeCompare(b.student.name) ||
+    new Date(b.violation.date) - new Date(a.violation.date)
+  );
+}
+
 function getRepeatedViolation(student) {
   const count = {};
   const violations = getVisibleViolations(student);
@@ -575,17 +813,97 @@ function getLatestViolationDate(student) {
   return Math.max(...violations.map(v => new Date(v.date).getTime()));
 }
 
-function hasAlert(student) {
+function hasBehaviorAlertTrigger(student) {
   const violations = getVisibleViolations(student);
-  return violations.length >= 5 || getRepeatedViolation(student);
+  return violations.length >= 5 || Boolean(getRepeatedViolation(student));
+}
+
+function isParentContactHandled(violation) {
+  return String(violation && violation.parentContacted || "").trim().toLowerCase() === "yes";
+}
+
+function isFollowUpHandledForAlert(violation) {
+  return isResolvedStatus(violation && violation.followUpStatus);
+}
+
+function isSettlementHandledForAlert(violation) {
+  const status = normalizeStatusText(violation && violation.status);
+
+  if (isPaidWithKindnessStatus(status)) return true;
+  if (["paid", "waived", "settled", "completed", "done", "no fee"].includes(status)) return true;
+
+  if (isKindnessRecord(violation)) {
+    return isKindnessCompleted(violation);
+  }
+
+  return getMonetaryFee(violation) <= 0 && status !== "unpaid";
+}
+
+function isAlertRecordHandled(violation) {
+  return isParentContactHandled(violation) &&
+    isFollowUpHandledForAlert(violation) &&
+    isSettlementHandledForAlert(violation);
+}
+
+function getAlertReviewRecords(student) {
+  const violations = getVisibleViolations(student);
+  const repeated = getRepeatedViolation(student);
+
+  if (violations.length >= 5) return violations;
+  if (repeated) return violations.filter(v => v.type === repeated[0]);
+
+  return [];
+}
+
+function getActiveAlertDetails(student) {
+  const violations = getVisibleViolations(student);
+  const repeated = getRepeatedViolation(student);
+  const reviewRecords = getAlertReviewRecords(student);
+
+  if (!reviewRecords.length) {
+    return {
+      active: false,
+      hasTrigger: false,
+      reason: "No active alert.",
+      missing: [],
+      handledCount: 0,
+      totalReview: 0
+    };
+  }
+
+  const missing = [];
+  if (reviewRecords.some(v => !isParentContactHandled(v))) missing.push("Parent Contact");
+  if (reviewRecords.some(v => !isFollowUpHandledForAlert(v))) missing.push("Follow-up Improved/Resolved");
+  if (reviewRecords.some(v => !isSettlementHandledForAlert(v))) missing.push("Settlement");
+
+  const handledCount = reviewRecords.filter(isAlertRecordHandled).length;
+  let reason = `Total Violations: ${violations.length}`;
+  if (repeated) reason = `Repeated: ${repeated[0]} (${repeated[1]}x)`;
+  if (violations.length >= 5) reason = `Total Alert: ${violations.length} violations`;
+
+  return {
+    active: missing.length > 0,
+    hasTrigger: true,
+    reason,
+    missing,
+    handledCount,
+    totalReview: reviewRecords.length,
+    repeated
+  };
+}
+
+function hasAlert(student) {
+  return getActiveAlertDetails(student).active;
 }
 
 function getStudentStatus(student) {
   const total = getVisibleViolations(student).length;
   const repeated = getRepeatedViolation(student);
+  const alertDetails = getActiveAlertDetails(student);
 
-  if (total >= 5) return { label: "Needs Support", className: "support", icon: "🔴" };
-  if (total >= 3 || repeated) return { label: "Needs Guidance", className: "guidance", icon: "🟡" };
+  if (alertDetails.active && total >= 5) return { label: "Needs Support", className: "support", icon: "🔴" };
+  if (alertDetails.active && (total >= 3 || repeated)) return { label: "Needs Guidance", className: "guidance", icon: "🟡" };
+  if (alertDetails.hasTrigger) return { label: "Resolved / Monitored", className: "track", icon: "🟢" };
 
   return { label: "On Track", className: "track", icon: "🟢" };
 }
@@ -774,6 +1092,62 @@ function getAttendanceRowsForDate(dateValue = getAttendanceDateValue()) {
   });
 }
 
+function normalizeAttendanceRemarksValue(value) {
+  return String(value || "").trim();
+}
+
+function buildSparseAttendanceSnapshot(dateValue = getAttendanceDateValue()) {
+  const snapshot = {};
+
+  students.forEach(student => {
+    const entry = getAttendanceEntry(student.id, dateValue);
+    const status = normalizeAttendanceStatusValue(entry.status);
+    const remarks = normalizeAttendanceRemarksValue(entry.remarks);
+
+    if (status !== "Present" || remarks) {
+      snapshot[student.id] = { status, remarks };
+    }
+  });
+
+  return snapshot;
+}
+
+function ensureAttendanceSavedSnapshot(dateValue = getAttendanceDateValue()) {
+  if (!attendanceSavedSnapshotByDate[dateValue]) {
+    attendanceSavedSnapshotByDate[dateValue] = buildSparseAttendanceSnapshot(dateValue);
+  }
+
+  return attendanceSavedSnapshotByDate[dateValue];
+}
+
+function attendanceSnapshotEntry(snapshot, studentId) {
+  return snapshot[studentId] || { status: "Present", remarks: "" };
+}
+
+function getChangedAttendanceRecords(dateValue = getAttendanceDateValue()) {
+  const original = ensureAttendanceSavedSnapshot(dateValue);
+  const current = buildSparseAttendanceSnapshot(dateValue);
+  const changedIds = new Set([
+    ...Object.keys(original),
+    ...Object.keys(current)
+  ]);
+
+  return [...changedIds].map(studentId => {
+    const before = attendanceSnapshotEntry(original, studentId);
+    const after = attendanceSnapshotEntry(current, studentId);
+
+    if (before.status === after.status && before.remarks === after.remarks) {
+      return null;
+    }
+
+    return {
+      studentId,
+      status: after.status,
+      remarks: after.remarks
+    };
+  }).filter(Boolean);
+}
+
 function getAttendanceCounts(rows) {
   const counts = {
     Present: 0,
@@ -921,7 +1295,7 @@ function openAttendanceStatusModal(status, dateValue = getTodayISO()) {
       `).join("")
     : `<p class="empty-message">No students in this status.</p>`;
 
-  attendanceStatusModal.classList.remove("hidden");
+  openModal(attendanceStatusModal);
 }
 
 function closeAttendanceStatusPopup() {
@@ -1022,6 +1396,8 @@ function renderAttendance() {
 
 function markAttendanceStudent(studentId) {
   if (appMode !== "admin" || !studentId) return;
+
+  ensureAttendanceSavedSnapshot(getAttendanceDateValue());
 
   setLocalAttendance(studentId, {
     status: attendanceMarkMode
@@ -2209,6 +2585,46 @@ function printMonthlyAttendanceReport() {
   })).then(() => setTimeout(printWhenReady, 150));
 }
 
+function buildFullAttendanceSaveRecords(dateValue = getAttendanceDateValue()) {
+  return getAttendanceRowsForDate(dateValue).map(row => ({
+    studentId: row.student.id,
+    status: normalizeAttendanceStatusValue(row.status),
+    remarks: normalizeAttendanceRemarksValue(row.remarks)
+  }));
+}
+
+async function postAttendancePayload(payload) {
+  const response = await fetch(API_URL, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+
+  const text = await response.text();
+
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    throw new Error(text || "Invalid server response.");
+  }
+}
+
+function syncLocalAttendanceRecordsAfterSave(dateValue) {
+  const otherDates = attendanceRecords.filter(record => record.date !== dateValue);
+  const compactRows = getAttendanceRowsForDate(dateValue)
+    .filter(row => row.status !== "Present" || normalizeAttendanceRemarksValue(row.remarks))
+    .map(row => ({
+      attendanceId: `ATT-${dateValue.replace(/-/g, "")}-${row.student.id}`,
+      studentId: row.student.id,
+      date: dateValue,
+      status: normalizeAttendanceStatusValue(row.status),
+      remarks: normalizeAttendanceRemarksValue(row.remarks)
+    }));
+
+  attendanceRecords = otherDates.concat(compactRows);
+  rebuildAttendanceIndex();
+  attendanceSavedSnapshotByDate[dateValue] = buildSparseAttendanceSnapshot(dateValue);
+}
+
 async function saveDailyAttendance() {
   if (appMode !== "admin") {
     showToast("Admin mode is required to save attendance.");
@@ -2222,65 +2638,106 @@ async function saveDailyAttendance() {
     return;
   }
 
-  const records = getAttendanceRowsForDate(dateValue).map(row => ({
-    studentId: row.student.id,
-    status: row.status,
-    remarks: row.remarks
-  }));
+  const changedRecords = getChangedAttendanceRecords(dateValue);
+
+  if (changedRecords.length === 0) {
+    if (attendanceMessage) {
+      attendanceMessage.classList.remove("hidden");
+      attendanceMessage.textContent = "✅ No attendance changes to save.";
+    }
+    showToast("No attendance changes to save.");
+    return;
+  }
 
   if (saveAttendanceBtn) {
     saveAttendanceBtn.disabled = true;
-    saveAttendanceBtn.textContent = "Saving...";
+    saveAttendanceBtn.textContent = `Saving ${changedRecords.length} change${changedRecords.length > 1 ? "s" : ""}...`;
   }
 
+  if (attendanceMessage) {
+    attendanceMessage.classList.remove("hidden");
+    attendanceMessage.textContent = `Saving ${changedRecords.length} changed record${changedRecords.length > 1 ? "s" : ""} only...`;
+  }
+
+  let result = null;
+  let usedFallback = false;
+
   try {
-    const response = await fetch(API_URL, {
-      method: "POST",
-      body: JSON.stringify({
+    try {
+      result = await postAttendancePayload({
+        action: "saveAttendanceFast",
+        date: dateValue,
+        records: changedRecords,
+        syncTardyViolations: true,
+        ultraFast: true
+      });
+
+      if (!result || !result.success) {
+        throw new Error((result && result.message) || "Fast attendance save failed.");
+      }
+    } catch (fastError) {
+      console.warn("Fast attendance save failed, using compatibility safe save:", fastError);
+      usedFallback = true;
+
+      if (attendanceMessage) {
+        attendanceMessage.textContent = "Compatibility save running. Update/Deploy Code.gs for the faster save.";
+      }
+
+      result = await postAttendancePayload({
         action: "saveAttendance",
         date: dateValue,
-        records,
+        records: buildFullAttendanceSaveRecords(dateValue),
         syncTardyViolations: true
-      })
-    });
+      });
 
-    const result = await response.json();
-
-    if (!result.success) {
-      throw new Error(result.message || "Unable to save attendance.");
+      if (!result || !result.success) {
+        throw new Error((result && result.message) || "Unable to save attendance.");
+      }
     }
 
-    const savedRecords = (result.records || records).map(record => ({
-      attendanceId: record.attendanceId || record.AttendanceID || `ATT-${dateValue.replace(/-/g, "")}-${record.studentId || record.StudentID}`,
-      studentId: record.studentId || record.StudentID,
-      date: dateValue,
-      status: normalizeAttendanceStatusValue(record.status || record.Status),
-      remarks: record.remarks || record.Remarks || ""
-    }));
-
-    attendanceRecords = attendanceRecords.filter(record => record.date !== dateValue);
-    attendanceRecords.push(...savedRecords);
-    rebuildAttendanceIndex();
-
-    await loadDataFromSheets();
-
+    // Update the screen immediately after the server confirms save.
+    // Do not wait for a full Google Sheets reload because that is what makes saving feel slow.
+    syncLocalAttendanceRecordsAfterSave(dateValue);
     renderAttendance();
     renderAttendanceQuickSummary();
     renderMonthlyAttendance();
 
+    const sync = result.tardyViolationSync || {};
+    const syncChanged = (sync.created || 0) + (sync.updated || 0) + (sync.removed || 0);
+    const modeText = usedFallback ? "compatibility save" : "fast save";
+    const syncText = syncChanged
+      ? ` Tardiness sync: +${sync.created || 0}, updated ${sync.updated || 0}, removed ${sync.removed || 0}.`
+      : "";
+
     if (attendanceMessage) {
-      const sync = result.tardyViolationSync || {};
-      const syncText = sync.created || sync.updated || sync.removed
-        ? ` Tardiness sync: +${sync.created || 0}, updated ${sync.updated || 0}, removed ${sync.removed || 0}.`
-        : "";
       attendanceMessage.classList.remove("hidden");
-      attendanceMessage.textContent = `✅ Attendance saved successfully.${syncText}`;
+      attendanceMessage.textContent = `✅ Attendance saved using ${modeText}. ${changedRecords.length} change${changedRecords.length > 1 ? "s" : ""} saved.${syncText}`;
     }
 
-    showToast("✅ Attendance saved.");
+    showToast(`✅ Attendance saved (${changedRecords.length} change${changedRecords.length > 1 ? "s" : ""}).`);
+
+    // Refresh linked violations in the background only if Tardy auto-records changed.
+    // This keeps the save button fast while still updating the student record shortly after.
+    if (syncChanged > 0 && !usedFallback) {
+      window.setTimeout(() => {
+        loadDataFromSheets().catch(error => {
+          console.warn("Background refresh after attendance save failed:", error);
+        });
+      }, 150);
+    } else if (syncChanged > 0 && usedFallback) {
+      window.setTimeout(() => {
+        loadDataFromSheets().catch(error => {
+          console.warn("Background refresh after compatibility attendance save failed:", error);
+        });
+      }, 150);
+    }
   } catch (error) {
     console.error("Attendance save error:", error);
     showToast("❌ Unable to save attendance.");
+    if (attendanceMessage) {
+      attendanceMessage.classList.remove("hidden");
+      attendanceMessage.textContent = `❌ Unable to save attendance. ${error.message || "Please try again."}`;
+    }
   } finally {
     if (saveAttendanceBtn) {
       saveAttendanceBtn.disabled = false;
@@ -2432,12 +2889,11 @@ function openAttendanceModal() {
   ensureAttendanceDefaults();
   renderAttendance();
   renderMonthlyAttendance();
-  const attendanceTools = document.querySelector(".attendance-mobile-tools");
+  const attendanceTools = document.querySelector(".attendance-tools-panel");
   if (attendanceTools) {
-    attendanceTools.open =
-      document.body.classList.contains("view-only-mode") || window.innerWidth > 650;
+    attendanceTools.open = false;
   }
-  attendanceModal.classList.remove("hidden");
+  openModal(attendanceModal);
 }
 
 function closeAttendanceModalPanel() {
@@ -2447,7 +2903,7 @@ function closeAttendanceModalPanel() {
 
 function openAddViolationModal() {
   if (!addPanel) return;
-  addPanel.classList.remove("hidden");
+  openModal(addPanel);
 
   if (addStudent) {
     setTimeout(() => addStudent.focus(), 150);
@@ -2486,6 +2942,7 @@ function renderTermSummary() {
   let paidFees = 0;
   let unpaidFees = 0;
   let waivedFees = 0;
+  let paidWithKindnessRecords = 0;
 
   const violationCounts = {};
 
@@ -2504,12 +2961,13 @@ function renderTermSummary() {
     if (status.className === "support") needsSupport++;
 
     visibleViolations.forEach(v => {
-      const fee = Number(v.fee) || 0;
+      const fee = getMonetaryFee(v);
       totalFees += fee;
 
-      if (v.status === "Paid") paidFees += fee;
-      if (v.status === "Unpaid") unpaidFees += fee;
-      if (v.status === "Waived") waivedFees += fee;
+      if (isPaidStatus(v.status)) paidFees += fee;
+      if (isUnpaidStatus(v.status)) unpaidFees += fee;
+      if (isWaivedStatus(v.status)) waivedFees += fee;
+      if (isPaidWithKindnessStatus(v.status) || isKindnessCompleted(v)) paidWithKindnessRecords++;
 
       violationCounts[v.type] = (violationCounts[v.type] || 0) + 1;
     });
@@ -2526,8 +2984,7 @@ function renderTermSummary() {
       status: getStudentStatus(student)
     }))
     .filter(student => student.total > 0)
-    .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name))
-    .slice(0, 5);
+    .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
 
   termSummaryList.innerHTML = `
     <div class="summary-stat-card">
@@ -2567,17 +3024,18 @@ function renderTermSummary() {
     </div>
 
     <div class="summary-stat-card wide top-list-card">
-      <span>Top Students with Records</span>
+      <span>Students with Records</span>
+      <small class="ranked-list-note">Ranked from most records to least. Total: ${topStudents.length}</small>
       ${
         topStudents.length
-          ? `<ol>${topStudents.map(student => `
+          ? `<ol class="ranked-student-list">${topStudents.map((student, index) => `
               <li>
                 <button
                   type="button"
                   class="summary-student-link"
                   onclick="selectStudentFromSummary('${student.id}')"
                 >
-                  <strong>${student.name}</strong>
+                  <strong><span class="rank-number">#${index + 1}</span> ${student.name}</strong>
                   <small>${student.total} record(s) • ${student.status.icon} ${student.status.label}</small>
                 </button>
               </li>
@@ -2589,10 +3047,11 @@ function renderTermSummary() {
     <div class="summary-stat-card wide fee-info">
       <span>Fee Summary</span>
       <div class="mini-fee-grid">
-        <small><strong>Total:</strong> ₱${totalFees}</small>
+        <small><strong>Cash to Pay:</strong> ₱${totalFees}</small>
         <small><strong>Paid:</strong> ₱${paidFees}</small>
         <small><strong>Unpaid:</strong> ₱${unpaidFees}</small>
         <small><strong>Waived:</strong> ₱${waivedFees}</small>
+        <small><strong>Paid with Kindness:</strong> ${paidWithKindnessRecords}</small>
       </div>
     </div>
   `;
@@ -2631,6 +3090,8 @@ function renderDashboard() {
   let alertCount = 0;
   let totalFees = 0;
   let collected = 0;
+  let kindnessSettlements = 0;
+  let paidWithKindnessRecords = 0;
 
   students.forEach(student => {
     const visibleViolations = getVisibleViolations(student);
@@ -2638,8 +3099,12 @@ function renderDashboard() {
     if (hasAlert(student)) alertCount++;
 
     visibleViolations.forEach(v => {
-      totalFees += v.fee;
-      if (v.status === "Paid") collected += v.fee;
+      const monetaryFee = getMonetaryFee(v);
+      totalFees += monetaryFee;
+
+      if (isPaidStatus(v.status)) collected += monetaryFee;
+      if (isKindnessPending(v)) kindnessSettlements++;
+      if (isPaidWithKindnessStatus(v.status) || isKindnessCompleted(v)) paidWithKindnessRecords++;
     });
   });
 
@@ -2647,6 +3112,14 @@ function renderDashboard() {
   document.getElementById("alertCount").textContent = alertCount;
   document.getElementById("totalFees").textContent = `₱${totalFees}`;
   document.getElementById("collectedFees").textContent = `₱${collected}`;
+
+  if (kindnessSettlementCount) {
+    kindnessSettlementCount.textContent = kindnessSettlements;
+  }
+
+  if (paidWithKindnessCount) {
+    paidWithKindnessCount.textContent = paidWithKindnessRecords;
+  }
 }
 
 function renderAlertCenter() {
@@ -2662,16 +3135,16 @@ function renderAlertCenter() {
     );
 
   if (alertedStudents.length === 0) {
-    alertList.innerHTML = `<p class="empty-message">No alerts yet. 🐨</p>`;
+    alertList.innerHTML = `<p class="empty-message">No active alerts. Settled records stay in student history. 🐨</p>`;
     return;
   }
 
   alertedStudents.forEach(student => {
     const status = getStudentStatus(student);
-    const repeated = getRepeatedViolation(student);
-
-    let reason = `Total Violations: ${getVisibleViolations(student).length}`;
-    if (repeated) reason = `Repeated: ${repeated[0]} (${repeated[1]}x)`;
+    const alertDetails = getActiveAlertDetails(student);
+    const missingText = alertDetails.missing.length
+      ? `Needs: ${alertDetails.missing.join(", ")}`
+      : "Ready for monitoring";
 
     const div = document.createElement("div");
     div.className = `alert-card ${status.className}`;
@@ -2679,7 +3152,8 @@ function renderAlertCenter() {
     div.innerHTML = `
       <strong>${status.icon} ${student.name}</strong>
       <div>${status.label}</div>
-      <small>${reason}</small>
+      <small>${alertDetails.reason}</small>
+      <small>${missingText}</small>
     `;
 
     div.onclick = () => {
@@ -2698,6 +3172,255 @@ function renderAlertCenter() {
 
     alertList.appendChild(div);
   });
+}
+
+
+function isResolvedStatus(value) {
+  const status = String(value || "").trim().toLowerCase();
+  return ["resolved", "completed", "done", "closed", "improved"].includes(status);
+}
+
+function isKindnessRecord(violation) {
+  return isKindnessSettlementType(violation && violation.settlementType) ||
+    isPaidWithKindnessStatus(violation && violation.status);
+}
+
+function isKindnessPending(violation) {
+  if (!isKindnessRecord(violation)) return false;
+  return !isKindnessCompleted(violation);
+}
+
+function isFollowUpPending(violation) {
+  const status = String(violation.followUpStatus || "").trim().toLowerCase();
+  if (!status || isResolvedStatus(status)) return false;
+  return Boolean(violation.followUpDate) || status === "pending" || status === "repeated";
+}
+
+function isFollowUpOverdue(violation) {
+  if (!isFollowUpPending(violation) || !violation.followUpDate) return false;
+  return violation.followUpDate < getTodayISO();
+}
+
+function buildActionItems() {
+  const items = [];
+
+  students.forEach(student => {
+    const visibleViolations = getVisibleViolations(student);
+    const repeated = getRepeatedViolation(student);
+    const studentStatus = getStudentStatus(student);
+
+    visibleViolations.forEach(violation => {
+      if (isFollowUpPending(violation)) {
+        items.push({
+          type: "followup",
+          student,
+          violation,
+          label: isFollowUpOverdue(violation) ? "Overdue Follow-up" : "Pending Follow-up",
+          detail: `${violation.type}${violation.followUpDate ? ` • ${violation.followUpDate}` : ""}`,
+          priority: isFollowUpOverdue(violation) ? 1 : 3
+        });
+      }
+
+      if (isKindnessPending(violation)) {
+        items.push({
+          type: "kindness",
+          student,
+          violation,
+          label: "Pending Kindness Alternative Payment",
+          detail: `${violation.type}${violation.kindnessTask ? ` • ${violation.kindnessTask}` : ""}`,
+          priority: 2
+        });
+      }
+
+      if (isUnpaidStatus(violation.status) && Number(violation.fee) > 0) {
+        items.push({
+          type: "unpaid",
+          student,
+          violation,
+          label: "Unpaid Fee",
+          detail: `${violation.type} • ₱${Number(violation.fee) || 0}`,
+          priority: 4
+        });
+      }
+
+      if (String(violation.parentContacted || "").toLowerCase() !== "yes" &&
+        (studentStatus.className === "support" || (repeated && repeated[0] === violation.type) || String(violation.followUpStatus || "").toLowerCase() === "repeated")) {
+        items.push({
+          type: "parent",
+          student,
+          violation,
+          label: "Parent Contact Needed",
+          detail: `${violation.type}${repeated ? ` • repeated ${repeated[1]}x` : ""}`,
+          priority: 5
+        });
+      }
+    });
+  });
+
+  return items.sort((a, b) =>
+    a.priority - b.priority ||
+    new Date(b.violation.date || 0) - new Date(a.violation.date || 0) ||
+    a.student.name.localeCompare(b.student.name)
+  );
+}
+
+function selectStudentFromAction(studentId) {
+  const student = students.find(item => String(item.id) === String(studentId));
+  if (!student) return;
+
+  selectedStudent = student;
+  renderStudents();
+  renderStudentDetails();
+
+  if (window.innerWidth <= 650) {
+    openStudentDetailsModal();
+    return;
+  }
+
+  const detailsPanel = document.querySelector(".details-panel");
+  if (detailsPanel) {
+    detailsPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
+function renderActionTracker(filterValue = activeActionFilter) {
+  if (!actionTrackerSummary || !pendingActionList) return;
+
+  const allItems = buildActionItems();
+  const counts = {
+    all: allItems.length,
+    followup: allItems.filter(item => item.type === "followup").length,
+    kindness: allItems.filter(item => item.type === "kindness").length,
+    unpaid: allItems.filter(item => item.type === "unpaid").length,
+    parent: allItems.filter(item => item.type === "parent").length
+  };
+
+  const labels = {
+    all: "All pending items",
+    followup: "Follow-up tracker",
+    kindness: "Pending kindness alternative payments",
+    unpaid: "Unpaid records",
+    parent: "Parent contact needed"
+  };
+
+  actionTrackerSummary.innerHTML = `
+    <button type="button" data-action-filter="all" class="${filterValue === "all" ? "active" : ""}">All Actions: ${counts.all}</button>
+    <button type="button" data-action-filter="followup" class="${filterValue === "followup" ? "active" : ""}">Follow-ups: ${counts.followup}</button>
+    <button type="button" data-action-filter="kindness" class="${filterValue === "kindness" ? "active" : ""}">Kindness Pending: ${counts.kindness}</button>
+    <button type="button" data-action-filter="unpaid" class="${filterValue === "unpaid" ? "active" : ""}">Unpaid: ${counts.unpaid}</button>
+    <button type="button" data-action-filter="parent" class="${filterValue === "parent" ? "active" : ""}">Parent Contact: ${counts.parent}</button>
+  `;
+
+  if (actionTrackerLabel) {
+    actionTrackerLabel.textContent = labels[filterValue] || labels.all;
+  }
+
+  const visibleItems = filterValue === "all"
+    ? allItems
+    : allItems.filter(item => item.type === filterValue);
+
+  if (!visibleItems.length) {
+    pendingActionList.innerHTML = `<p class="empty-message">No pending actions for this view. 🐨</p>`;
+  } else {
+    pendingActionList.innerHTML = visibleItems.slice(0, 30).map(item => `
+      <button type="button" class="pending-action-item ${item.type}" onclick="selectStudentFromAction('${escapeHTML(item.student.id)}')">
+        <span>${escapeHTML(item.label)}</span>
+        <strong>${escapeHTML(item.student.name)}</strong>
+        <small>${escapeHTML(item.detail || "")}</small>
+      </button>
+    `).join("");
+  }
+
+  renderKindnessBoard();
+}
+
+function renderKindnessBoard() {
+  if (!kindnessBoardSummary || !kindnessBoardList) return;
+
+  const kindnessRecords = [];
+
+  students.forEach(student => {
+    getVisibleViolations(student).forEach(violation => {
+      if (!isKindnessRecord(violation)) return;
+      kindnessRecords.push({ student, violation });
+    });
+  });
+
+  const pending = kindnessRecords.filter(item => isKindnessPending(item.violation));
+  const completed = kindnessRecords.filter(item => isKindnessCompleted(item.violation));
+
+  kindnessBoardSummary.innerHTML = `
+    <span>Pending: ${pending.length}</span>
+    <span>Completed: ${completed.length}</span>
+  `;
+
+  const list = kindnessRecords
+    .sort((a, b) => Number(isKindnessPending(b.violation)) - Number(isKindnessPending(a.violation)) ||
+      new Date(b.violation.date || 0) - new Date(a.violation.date || 0))
+    .slice(0, 12);
+
+  if (!list.length) {
+    kindnessBoardList.innerHTML = `<p class="empty-message">No kindness alternative payments yet.</p>`;
+    return;
+  }
+
+  kindnessBoardList.innerHTML = list.map(item => `
+    <button type="button" class="kindness-board-item ${isKindnessPending(item.violation) ? "pending" : "completed"}" onclick="selectStudentFromAction('${escapeHTML(item.student.id)}')">
+      <strong>${escapeHTML(item.student.name)}</strong>
+      <small>${escapeHTML(item.violation.type)} • ${escapeHTML(getEffectiveKindnessStatus(item.violation))}</small>
+      ${getEffectiveKindnessTask(item.violation) ? `<em>${escapeHTML(getEffectiveKindnessTask(item.violation))}</em>` : ""}
+    </button>
+  `).join("");
+}
+
+function openKindnessSettlementModal() {
+  renderKindnessSettlementDetails();
+  openModal(kindnessSettlementModal);
+}
+
+function renderKindnessSettlementDetails() {
+  if (!kindnessSettlementSummary || !kindnessSettlementList) return;
+
+  const records = getKindnessSettlementRecords();
+  const pending = records.filter(item => isKindnessPending(item.violation));
+  const completed = records.filter(item => isKindnessCompleted(item.violation));
+  const byViolation = {};
+
+  records.forEach(item => {
+    const key = item.violation.type || "Unknown Violation";
+    byViolation[key] = (byViolation[key] || 0) + 1;
+  });
+
+  kindnessSettlementSummary.innerHTML = `
+    <span>Total: ${records.length}</span>
+    <span>Pending: ${pending.length}</span>
+    <span>Completed: ${completed.length}</span>
+  `;
+
+  if (!records.length) {
+    kindnessSettlementList.innerHTML = `<p class="empty-message">No records selected as Kindness Alternative Payment yet.</p>`;
+    return;
+  }
+
+  const countHTML = Object.entries(byViolation)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([name, count]) => `<span>${escapeHTML(name)}: <strong>${count}</strong></span>`)
+    .join("");
+
+  const recordHTML = records.map(item => `
+    <button type="button" class="kindness-settlement-item ${isKindnessPending(item.violation) ? "pending" : "completed"}" onclick="selectStudentFromAction('${escapeHTML(item.student.id)}')">
+      <strong>${escapeHTML(item.student.name)}</strong>
+      <small>${escapeHTML(item.violation.date || "No date")} • ${escapeHTML(item.violation.type || "Violation")}</small>
+      <em>${escapeHTML(getEffectiveKindnessTask(item.violation) || "No task encoded yet")}</em>
+      <span>Status: ${escapeHTML(getEffectiveKindnessStatus(item.violation))}${getEffectiveKindnessCompletedDate(item.violation) ? ` • Completed: ${escapeHTML(formatDisplayDate(getEffectiveKindnessCompletedDate(item.violation)))}` : ""}</span>
+    </button>
+  `).join("");
+
+  kindnessSettlementList.innerHTML = `
+    <div class="kindness-breakdown-title">Breakdown by Violation Type</div>
+    <div class="kindness-settlement-counts">${countHTML}</div>
+    ${recordHTML}
+  `;
 }
 
 function renderStudents() {
@@ -2720,11 +3443,14 @@ function renderStudents() {
 
     const repeated = getRepeatedViolation(student);
     const status = getStudentStatus(student);
+    const visibleCount = getVisibleViolations(student).length;
+    const activeAlert = hasAlert(student);
 
-    let badge = `<span class="badge ok">${getVisibleViolations(student).length} violation(s)</span>`;
+    let badge = `<span class="badge ok">${visibleCount} violation(s)</span>`;
 
-    if (repeated) badge = `<span class="badge warn">⚠️ ${repeated[0]} ${repeated[1]}x</span>`;
-    if (getVisibleViolations(student).length >= 5) badge = `<span class="badge danger">🚨 ${getVisibleViolations(student).length} Violations</span>`;
+    if (activeAlert && repeated) badge = `<span class="badge warn">⚠️ ${repeated[0]} ${repeated[1]}x</span>`;
+    if (activeAlert && visibleCount >= 5) badge = `<span class="badge danger">🚨 ${visibleCount} Active Alert</span>`;
+    if (!activeAlert && (visibleCount >= 5 || repeated)) badge = `<span class="badge ok">✅ Monitored</span>`;
 
     card.innerHTML = `
       <strong>${student.name}</strong>
@@ -2754,30 +3480,41 @@ function renderStudentDetails() {
   selectedName.textContent = selectedStudent.name;
   studentSummary.innerHTML = buildStudentSummaryHTML(selectedStudent);
   renderViolationList();
+  renderStudentTimeline();
 }
 
 function buildStudentSummaryHTML(student) {
   const visibleViolations = getVisibleViolations(student);
   const total = visibleViolations.length;
 
-  const totalFees = visibleViolations.reduce((sum, v) => sum + v.fee, 0);
+  const totalFees = visibleViolations.reduce((sum, v) => sum + getMonetaryFee(v), 0);
   const paidFees = visibleViolations
-    .filter(v => v.status === "Paid")
-    .reduce((sum, v) => sum + v.fee, 0);
+    .filter(v => isPaidStatus(v.status))
+    .reduce((sum, v) => sum + getMonetaryFee(v), 0);
   const unpaidFees = visibleViolations
-    .filter(v => v.status === "Unpaid")
-    .reduce((sum, v) => sum + v.fee, 0);
+    .filter(v => isUnpaidStatus(v.status))
+    .reduce((sum, v) => sum + getMonetaryFee(v), 0);
   const waivedFees = visibleViolations
-    .filter(v => v.status === "Waived")
-    .reduce((sum, v) => sum + v.fee, 0);
+    .filter(v => isWaivedStatus(v.status))
+    .reduce((sum, v) => sum + getMonetaryFee(v), 0);
+
+  const paidWithKindnessRecords = getPaidWithKindnessCount(visibleViolations);
 
   const repeated = getRepeatedViolation(student);
   const status = getStudentStatus(student);
+  const alertDetails = getActiveAlertDetails(student);
 
-  let alertText = "No repeated violation alert.";
+  let alertText = "No active alert.";
 
-  if (repeated) alertText = `⚠️ Repeated Alert: ${repeated[0]} has been recorded ${repeated[1]}x.`;
-  if (total >= 5) alertText = `🚨 Total Alert: This student already has ${total} total violations.`;
+  if (alertDetails.active) {
+    alertText = `⚠️ Active Alert: ${alertDetails.reason}. Needs ${alertDetails.missing.join(", ")}.`;
+  } else if (alertDetails.hasTrigger) {
+    alertText = `✅ Resolved / Monitored: ${alertDetails.reason}. Parent contact, follow-up, and settlement are handled.`;
+  } else if (repeated) {
+    alertText = `⚠️ Repeated Alert: ${repeated[0]} has been recorded ${repeated[1]}x.`;
+  } else if (total >= 5) {
+    alertText = `🚨 Total Alert: This student already has ${total} total violations.`;
+  }
 
   return `
     <div class="summary-box">
@@ -2792,10 +3529,11 @@ function buildStudentSummaryHTML(student) {
       <p><strong>Alert Status:</strong> ${alertText}</p>
 
       <div class="fee-text fee-breakdown">
-        <p><strong>Total Fees:</strong> ₱${totalFees}</p>
+        <p><strong>To Pay with Cash:</strong> ₱${totalFees}</p>
         <p><strong>Paid:</strong> ₱${paidFees}</p>
         <p><strong>Unpaid:</strong> ₱${unpaidFees}</p>
         <p><strong>Waived:</strong> ₱${waivedFees}</p>
+        <p><strong>Paid with Kindness:</strong> ${paidWithKindnessRecords}</p>
       </div>
     </div>
   `;
@@ -2809,7 +3547,7 @@ function buildViolationListHTML(student, filterValue = "all") {
   data.sort((a, b) => new Date(b.date) - new Date(a.date));
 
   if (filterValue !== "all") {
-    data = data.filter(v => v.status.toLowerCase() === filterValue);
+    data = data.filter(v => getStatusFilterKey(v.status) === filterValue);
   }
 
   if (data.length === 0) {
@@ -2820,12 +3558,14 @@ function buildViolationListHTML(student, filterValue = "all") {
     <div class="violation-item">
       <strong>${v.type}</strong>
       <small>${v.date}</small>
-      <div class="fee-text">Fee: ₱${v.fee}</div>
-      <div class="status ${v.status.toLowerCase()}">${v.status}</div>
+      <div class="fee-text">Fee: ${getFeeDisplay(v)}</div>
+      <div class="status ${getStatusClass(v.status)}">${v.status}</div>
       ${v.actionTaken ? `<small>Action Taken: ${v.actionTaken}</small>` : ""}
       ${v.reflection ? `<small>Reflection / Commitment: ${v.reflection}</small>` : ""}
       ${(v.followUpDate || v.followUpStatus) ? `<small>Follow-up: ${v.followUpStatus || "Pending"}${v.followUpDate ? ` • ${v.followUpDate}` : ""}</small>` : ""}
       ${v.parentContacted === "Yes" ? `<small>Parent Contacted: Yes</small>` : ""}
+      ${v.settlementType ? `<small>Settlement: ${v.settlementType}</small>` : ""}
+      ${getEffectiveKindnessTask(v) ? `<small class="kindness-line">Kindness Alternative Payment: ${escapeHTML(getEffectiveKindnessTask(v))} • ${escapeHTML(getEffectiveKindnessStatus(v))}${getEffectiveKindnessCompletedDate(v) ? ` • ${escapeHTML(formatDisplayDate(getEffectiveKindnessCompletedDate(v)))}` : ""}</small>` : ""}
       ${v.notes ? `<small>Notes: ${v.notes}</small>` : ""}
 
       <div class="violation-actions">
@@ -2834,6 +3574,49 @@ function buildViolationListHTML(student, filterValue = "all") {
       </div>
     </div>
   `).join("");
+}
+
+
+function buildStudentTimelineHTML(student) {
+  if (!student) return `<p class="empty-message">Choose a student to view timeline. 🐨</p>`;
+
+  const items = getVisibleViolations(student)
+    .slice()
+    .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+
+  if (!items.length) {
+    return `<p class="empty-message">No progress timeline yet. 🐨</p>`;
+  }
+
+  return items.map(item => {
+    const chips = [];
+    chips.push(item.status || "Unpaid");
+    if (item.followUpStatus) chips.push(`Follow-up: ${item.followUpStatus}`);
+    if (isKindnessRecord(item)) chips.push(`Kindness: ${getEffectiveKindnessStatus(item)}`);
+    if (item.parentContacted === "Yes") chips.push("Parent Contacted");
+
+    return `
+      <div class="timeline-item ${isKindnessPending(item) ? "pending-kindness" : ""} ${isFollowUpOverdue(item) ? "overdue" : ""}">
+        <div class="timeline-dot"></div>
+        <div class="timeline-content">
+          <strong>${escapeHTML(item.type)}</strong>
+          <small>${escapeHTML(formatDisplayDate(item.date) || item.date || "No date")}</small>
+          <div class="timeline-chips">
+            ${chips.map(chip => `<span>${escapeHTML(chip)}</span>`).join("")}
+          </div>
+          ${item.actionTaken ? `<p>Action: ${escapeHTML(item.actionTaken)}</p>` : ""}
+          ${getEffectiveKindnessTask(item) ? `<p>Kindness Alternative Payment: ${escapeHTML(getEffectiveKindnessTask(item))}${getEffectiveKindnessCompletedDate(item) ? ` • Completed: ${escapeHTML(formatDisplayDate(getEffectiveKindnessCompletedDate(item)))}` : ""}</p>` : ""}
+          ${item.notes ? `<p>Notes: ${escapeHTML(item.notes)}</p>` : ""}
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderStudentTimeline() {
+  if (studentTimeline) {
+    studentTimeline.innerHTML = buildStudentTimelineHTML(selectedStudent);
+  }
 }
 
 function renderViolationList() {
@@ -2865,7 +3648,11 @@ function openStudentDetailsModal() {
     );
   }
 
-  studentDetailsModal.classList.remove("hidden");
+  if (modalStudentTimeline) {
+    modalStudentTimeline.innerHTML = buildStudentTimelineHTML(selectedStudent);
+  }
+
+  openModal(studentDetailsModal);
 }
 
 function closeStudentDetailsPopup() {
@@ -2882,6 +3669,7 @@ function renderFeeList() {
       <div class="fee-item">
         <strong>${v.name}</strong>
         <div class="fee-text">₱${v.fee}</div>
+        ${v.kindnessAlternative ? `<small class="kindness-line">Kindness Alternative Payment: ${escapeHTML(v.kindnessAlternative)}${v.kindnessValue ? ` • ${escapeHTML(v.kindnessValue)}` : ""}</small>` : ""}
       </div>
     `;
   });
@@ -2896,7 +3684,7 @@ function openManageFeesModal() {
   if (!manageFeesModal) return;
 
   renderManageFeesList();
-  manageFeesModal.classList.remove("hidden");
+  openModal(manageFeesModal);
 }
 
 function closeManageFeesPanel() {
@@ -2919,7 +3707,8 @@ function renderManageFeesList() {
       <div class="manage-fee-item">
         <div>
           <strong>${escapeHTML(item.name)}</strong>
-          <small>${escapeHTML(item.category || "Uncategorized")} • Alert: ${item.threshold || 3}</small>
+          ${item.kindnessAlternative ? `<small class="kindness-line">Kindness Alternative Payment: ${escapeHTML(item.kindnessAlternative)}${item.kindnessValue ? ` • ${escapeHTML(item.kindnessValue)}` : ""}</small>` : `<small>No kindness alternative set.</small>`}
+          <small class="advanced-fee-note">Advanced: ${escapeHTML(item.category || "General")} • Alert at ${item.threshold || 3}</small>
         </div>
         <b>₱${Number(item.fee) || 0}</b>
       </div>
@@ -2938,11 +3727,45 @@ function parseBulkViolationTypes(text) {
           ? line.split("\t")
           : line.split(",");
 
+      const cleaned = parts.map(part => String(part || "").trim());
+      const thirdIsThreshold = /^\d+$/.test(cleaned[2] || "");
+      const fourthIsThreshold = /^\d+$/.test(cleaned[3] || "");
+
+      // Current simple format:
+      // Name | Fee | Alert Threshold | Kindness Alternative Payment | Kindness Value
+      if (cleaned.length >= 5 && thirdIsThreshold) {
+        return {
+          name: cleaned[0] || "",
+          fee: Number(cleaned[1] || "0") || 0,
+          category: "General",
+          threshold: Number(cleaned[2] || "3") || 3,
+          kindnessAlternative: cleaned[3] || "",
+          kindnessValue: cleaned[4] || ""
+        };
+      }
+
+      // Old complete format:
+      // Name | Fee | Category | Threshold | Kindness Alternative Payment | Kindness Value
+      if (cleaned.length >= 6 || (cleaned.length === 5 && fourthIsThreshold)) {
+        return {
+          name: cleaned[0] || "",
+          fee: Number(cleaned[1] || "0") || 0,
+          category: cleaned[2] || "General",
+          threshold: Number(cleaned[3] || "3") || 3,
+          kindnessAlternative: cleaned[4] || "",
+          kindnessValue: cleaned[5] || ""
+        };
+      }
+
+      // Older simplified format still accepted:
+      // Name | Fee | Kindness Alternative Payment | Kindness Value
       return {
-        name: (parts[0] || "").trim(),
-        fee: Number((parts[1] || "0").trim()) || 0,
-        category: (parts[2] || "").trim(),
-        threshold: Number((parts[3] || "3").trim()) || 3
+        name: cleaned[0] || "",
+        fee: Number(cleaned[1] || "0") || 0,
+        category: "General",
+        threshold: 3,
+        kindnessAlternative: cleaned[2] || "",
+        kindnessValue: cleaned[3] || ""
       };
     })
     .filter(item => item.name);
@@ -2986,8 +3809,10 @@ async function saveSingleViolationType(event) {
   const record = {
     name: violationTypeNameInput ? violationTypeNameInput.value.trim() : "",
     fee: violationTypeFeeInput ? Number(violationTypeFeeInput.value) || 0 : 0,
-    category: violationTypeCategoryInput ? violationTypeCategoryInput.value.trim() : "",
-    threshold: violationTypeThresholdInput ? Number(violationTypeThresholdInput.value) || 3 : 3
+    category: violationTypeCategoryInput && violationTypeCategoryInput.value.trim() ? violationTypeCategoryInput.value.trim() : "General",
+    threshold: violationTypeThresholdInput ? Number(violationTypeThresholdInput.value) || 3 : 3,
+    kindnessAlternative: violationTypeKindnessInput ? violationTypeKindnessInput.value.trim() : "",
+    kindnessValue: violationTypeKindnessValueInput ? violationTypeKindnessValueInput.value.trim() : ""
   };
 
   try {
@@ -2999,6 +3824,8 @@ async function saveSingleViolationType(event) {
 
     if (violationTypeFeeInput) violationTypeFeeInput.value = "0";
     if (violationTypeThresholdInput) violationTypeThresholdInput.value = "3";
+    if (violationTypeKindnessInput) violationTypeKindnessInput.value = "";
+    if (violationTypeKindnessValueInput) violationTypeKindnessValueInput.value = "";
   } catch (error) {
     console.error("Save violation type error:", error);
     showToast("Unable to save violation type.");
@@ -3053,8 +3880,15 @@ function populateAddForm() {
   }
 }
 
+function applyKindnessSuggestionFromSelectedViolation() {
+  syncKindnessTaskForForm(addSettlementType, addViolationType, addKindnessTask);
+}
+
 async function saveViolation(event) {
   event.preventDefault();
+  applyPaidWithKindnessStatus(addStatus, addSettlementType, addViolationType, addKindnessTask, addKindnessStatus, addKindnessCompletedDate, addAdvancedFields);
+  syncKindnessCompletedDateForStatus(addKindnessStatus, addKindnessCompletedDate);
+  syncKindnessTaskForForm(addSettlementType, addViolationType, addKindnessTask);
 
   const violationInfo = violationFees.find(v => v.name === addViolationType.value);
 
@@ -3069,6 +3903,10 @@ async function saveViolation(event) {
     followUpDate: addFollowUpDate ? addFollowUpDate.value : "",
     followUpStatus: addFollowUpStatus ? addFollowUpStatus.value : "Pending",
     parentContacted: addParentContacted ? addParentContacted.value : "No",
+    settlementType: addSettlementType ? addSettlementType.value : "Cash",
+    kindnessTask: addKindnessTask ? addKindnessTask.value : "",
+    kindnessStatus: addKindnessStatus ? addKindnessStatus.value : "Pending",
+    kindnessCompletedDate: addKindnessCompletedDate ? addKindnessCompletedDate.value : "",
     date: addDate.value,
     notes: addNotes.value,
     encodedBy: "Sir JR"
@@ -3099,6 +3937,10 @@ async function saveViolation(event) {
         followUpDate: payload.followUpDate,
         followUpStatus: payload.followUpStatus,
         parentContacted: payload.parentContacted,
+        settlementType: payload.settlementType,
+        kindnessTask: payload.kindnessTask,
+        kindnessStatus: payload.kindnessStatus,
+        kindnessCompletedDate: payload.kindnessCompletedDate,
         notes: payload.notes
       };
 
@@ -3112,7 +3954,7 @@ async function saveViolation(event) {
 
       addForm.reset();
       populateAddForm();
-      renderAll();
+      await loadDataFromSheets();
       closeAddViolationModal();
 
     } else {
@@ -3145,6 +3987,18 @@ function editViolation(recordId) {
   editRecordId.value = violation.recordId;
   editViolationType.value = violation.type;
   editStatus.value = violation.status;
+  if (editSettlementType) {
+    editSettlementType.value = violation.settlementType || "Cash";
+  }
+  if (editKindnessTask) {
+    editKindnessTask.value = violation.kindnessTask || "";
+  }
+  if (editKindnessStatus) {
+    editKindnessStatus.value = violation.kindnessStatus || "Pending";
+  }
+  if (editKindnessCompletedDate) {
+    editKindnessCompletedDate.value = violation.kindnessCompletedDate || "";
+  }
   if (editActionTaken) {
     editActionTaken.value = violation.actionTaken || "Verbal Reminder";
   }
@@ -3162,12 +4016,24 @@ function editViolation(recordId) {
   }
   editDate.value = violation.date;
   editNotes.value = violation.notes || "";
+  if (isPaidWithKindnessStatus(editStatus ? editStatus.value : violation.status)) {
+    applyPaidWithKindnessStatus(editStatus, editSettlementType, editViolationType, editKindnessTask, editKindnessStatus, editKindnessCompletedDate, null);
+  } else if (!editKindnessTask || !editKindnessTask.value.trim()) {
+    if (editKindnessTask) editKindnessTask.dataset.autoSuggested = "true";
+    applyPaidWithKindnessStatus(editStatus, editSettlementType, editViolationType, editKindnessTask, editKindnessStatus, editKindnessCompletedDate, null);
+    syncKindnessTaskForForm(editSettlementType, editViolationType, editKindnessTask);
+  }
 
-  editModal.classList.remove("hidden");
+  syncKindnessCompletedDateForStatus(editKindnessStatus, editKindnessCompletedDate);
+
+  openModal(editModal);
 }
 
 async function saveEditedViolation(event) {
   event.preventDefault();
+  applyPaidWithKindnessStatus(editStatus, editSettlementType, editViolationType, editKindnessTask, editKindnessStatus, editKindnessCompletedDate, null);
+  syncKindnessCompletedDateForStatus(editKindnessStatus, editKindnessCompletedDate);
+  syncKindnessTaskForForm(editSettlementType, editViolationType, editKindnessTask);
 
   const violationInfo = violationFees.find(v => v.name === editViolationType.value);
 
@@ -3183,6 +4049,10 @@ async function saveEditedViolation(event) {
     followUpDate: editFollowUpDate ? editFollowUpDate.value : "",
     followUpStatus: editFollowUpStatus ? editFollowUpStatus.value : "Pending",
     parentContacted: editParentContacted ? editParentContacted.value : "No",
+    settlementType: editSettlementType ? editSettlementType.value : "Cash",
+    kindnessTask: editKindnessTask ? editKindnessTask.value : "",
+    kindnessStatus: editKindnessStatus ? editKindnessStatus.value : "Pending",
+    kindnessCompletedDate: editKindnessCompletedDate ? editKindnessCompletedDate.value : "",
     notes: editNotes.value
   };
 
@@ -3211,11 +4081,15 @@ async function saveEditedViolation(event) {
         record.followUpDate = payload.followUpDate;
         record.followUpStatus = payload.followUpStatus;
         record.parentContacted = payload.parentContacted;
+        record.settlementType = payload.settlementType;
+        record.kindnessTask = payload.kindnessTask;
+        record.kindnessStatus = payload.kindnessStatus;
+        record.kindnessCompletedDate = payload.kindnessCompletedDate;
         record.notes = payload.notes;
       }
 
+      await loadDataFromSheets();
       editModal.classList.add("hidden");
-      renderAll();
       showToast("✅ Violation updated successfully.");
 
     } else {
@@ -3231,7 +4105,7 @@ function deleteViolation(recordId) {
   if (!deleteModal || !deleteRecordId) return;
 
   deleteRecordId.value = recordId;
-  deleteModal.classList.remove("hidden");
+  openModal(deleteModal);
 }
 
 async function confirmDeleteViolation() {
@@ -3285,7 +4159,7 @@ function openPrintOptions() {
   }
 
   if (printOptionsModal) {
-    printOptionsModal.classList.remove("hidden");
+    openModal(printOptionsModal);
   }
 }
 
@@ -3302,7 +4176,7 @@ function openPrintAllOptions() {
   }
 
   if (printAllOptionsModal) {
-    printAllOptionsModal.classList.remove("hidden");
+    openModal(printAllOptionsModal);
   }
 }
 
@@ -3312,27 +4186,48 @@ function closePrintAllOptions() {
   }
 }
 
+function getKindnessSummaryText(violation) {
+  if (!violation) return "";
+
+  const parts = [];
+  if (violation.status && isPaidWithKindnessStatus(violation.status)) parts.push("Paid with Kindness");
+  if (violation.settlementType) parts.push(`Settlement: ${violation.settlementType}`);
+  if (violation.kindnessTask) parts.push(`Kindness Alternative Payment: ${violation.kindnessTask}`);
+  if (violation.kindnessStatus) parts.push(`Status: ${violation.kindnessStatus}`);
+  if (violation.kindnessCompletedDate) parts.push(`Completed: ${violation.kindnessCompletedDate}`);
+
+  return parts.join(" • ");
+}
+
+function getPrintableNotesText(violation) {
+  return [violation.notes || "", getKindnessSummaryText(violation)]
+    .filter(Boolean)
+    .join(" | ");
+}
+
 function getFeeSummary(student) {
   const violations = getVisibleViolations(student);
 
   const totalFees = violations.reduce(
-    (sum, v) => sum + (Number(v.fee) || 0),
+    (sum, v) => sum + getMonetaryFee(v),
     0
   );
 
   const paidFees = violations
-    .filter(v => v.status === "Paid")
-    .reduce((sum, v) => sum + (Number(v.fee) || 0), 0);
+    .filter(v => isPaidStatus(v.status))
+    .reduce((sum, v) => sum + getMonetaryFee(v), 0);
 
   const unpaidFees = violations
-    .filter(v => v.status === "Unpaid")
-    .reduce((sum, v) => sum + (Number(v.fee) || 0), 0);
+    .filter(v => isUnpaidStatus(v.status))
+    .reduce((sum, v) => sum + getMonetaryFee(v), 0);
 
   const waivedFees = violations
-    .filter(v => v.status === "Waived")
-    .reduce((sum, v) => sum + (Number(v.fee) || 0), 0);
+    .filter(v => isWaivedStatus(v.status))
+    .reduce((sum, v) => sum + getMonetaryFee(v), 0);
 
-  return { totalFees, paidFees, unpaidFees, waivedFees };
+  const paidWithKindnessRecords = getPaidWithKindnessCount(violations);
+
+  return { totalFees, paidFees, unpaidFees, waivedFees, paidWithKindnessRecords };
 }
 
 function buildPrintableStudentSection(student, options) {
@@ -3348,7 +4243,7 @@ function buildPrintableStudentSection(student, options) {
   } = options;
 
   const status = getStudentStatus(student);
-  const { totalFees, paidFees, unpaidFees, waivedFees } = getFeeSummary(student);
+  const { totalFees, paidFees, unpaidFees, waivedFees, paidWithKindnessRecords } = getFeeSummary(student);
 
   const sortedViolations = [...getVisibleViolations(student)].sort(
     (a, b) => new Date(b.date) - new Date(a.date)
@@ -3369,12 +4264,12 @@ function buildPrintableStudentSection(student, options) {
       <td>${v.date || ""}</td>
       <td>${v.type || ""}</td>
       ${includeStatus ? `<td>${v.status || ""}</td>` : ""}
-      ${includeFees ? `<td>₱${Number(v.fee) || 0}</td>` : ""}
+      ${includeFees ? `<td>${getFeeDisplay(v)}</td>` : ""}
       ${includeActionTaken ? `<td>${v.actionTaken || ""}</td>` : ""}
       ${includeReflection ? `<td>${v.reflection || ""}</td>` : ""}
       ${includeFollowUp ? `<td>${[v.followUpStatus || "", v.followUpDate || ""].filter(Boolean).join(" • ")}</td>` : ""}
       ${includeParent ? `<td>${v.parentContacted || "No"}</td>` : ""}
-      ${includeNotes ? `<td>${v.notes || ""}</td>` : ""}
+      ${includeNotes ? `<td>${getPrintableNotesText(v)}</td>` : ""}
     </tr>
   `).join("");
 
@@ -3394,10 +4289,11 @@ function buildPrintableStudentSection(student, options) {
 
         ${includeFees ? `
           <div class="fee-summary">
-            <div><strong>Total</strong><br>₱${totalFees}</div>
+            <div><strong>Cash to Pay</strong><br>₱${totalFees}</div>
             <div><strong>Paid</strong><br>₱${paidFees}</div>
             <div><strong>Unpaid</strong><br>₱${unpaidFees}</div>
             <div><strong>Waived</strong><br>₱${waivedFees}</div>
+            <div><strong>Paid w/ Kindness</strong><br>${paidWithKindnessRecords}</div>
           </div>
         ` : ""}
       </div>
@@ -3604,7 +4500,7 @@ function printAllStudentRecords() {
 
           .fee-summary {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(5, 1fr);
             gap: 8px;
             margin-top: 10px;
           }
@@ -3678,7 +4574,7 @@ function printAllStudentRecords() {
             <p><strong>Term:</strong> ${getTermLabel()}</p>
             <p><strong>Total Students Printed:</strong> ${printableStudents.length}</p>
             <p><strong>Total Violations:</strong> ${totalViolations}</p>
-            ${includeFees ? `<p><strong>Class Total Fees:</strong> ₱${classTotalFees}</p>` : ""}
+            ${includeFees ? `<p><strong>Class Cash to Pay:</strong> ₱${classTotalFees}</p>` : ""}
           </div>
 
           <div class="cover-note">
@@ -3722,21 +4618,23 @@ function printStudentRecord() {
   const visibleViolations = getVisibleViolations(selectedStudent);
 
   const totalFees = visibleViolations.reduce(
-    (sum, v) => sum + (Number(v.fee) || 0),
+    (sum, v) => sum + getMonetaryFee(v),
     0
   );
 
   const paidFees = visibleViolations
-    .filter(v => v.status === "Paid")
-    .reduce((sum, v) => sum + (Number(v.fee) || 0), 0);
+    .filter(v => isPaidStatus(v.status))
+    .reduce((sum, v) => sum + getMonetaryFee(v), 0);
 
   const unpaidFees = visibleViolations
-    .filter(v => v.status === "Unpaid")
-    .reduce((sum, v) => sum + (Number(v.fee) || 0), 0);
+    .filter(v => isUnpaidStatus(v.status))
+    .reduce((sum, v) => sum + getMonetaryFee(v), 0);
 
   const waivedFees = visibleViolations
-    .filter(v => v.status === "Waived")
-    .reduce((sum, v) => sum + (Number(v.fee) || 0), 0);
+    .filter(v => isWaivedStatus(v.status))
+    .reduce((sum, v) => sum + getMonetaryFee(v), 0);
+
+  const paidWithKindnessRecords = getPaidWithKindnessCount(visibleViolations);
 
   const sortedViolations = [...visibleViolations].sort(
     (a, b) => new Date(b.date) - new Date(a.date)
@@ -3747,12 +4645,12 @@ function printStudentRecord() {
       <td>${v.date || ""}</td>
       <td>${v.type || ""}</td>
       ${includeStatus ? `<td>${v.status || ""}</td>` : ""}
-      ${includeFees ? `<td>₱${Number(v.fee) || 0}</td>` : ""}
+      ${includeFees ? `<td>${getFeeDisplay(v)}</td>` : ""}
       ${includeActionTaken ? `<td>${v.actionTaken || ""}</td>` : ""}
       ${includeReflection ? `<td>${v.reflection || ""}</td>` : ""}
       ${includeFollowUp ? `<td>${[v.followUpStatus || "", v.followUpDate || ""].filter(Boolean).join(" • ")}</td>` : ""}
       ${includeParent ? `<td>${v.parentContacted || "No"}</td>` : ""}
-      ${includeNotes ? `<td>${v.notes || ""}</td>` : ""}
+      ${includeNotes ? `<td>${getPrintableNotesText(v)}</td>` : ""}
     </tr>
   `).join("");
 
@@ -3824,7 +4722,7 @@ function printStudentRecord() {
 
           .fee-summary {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(5, 1fr);
             gap: 8px;
             margin-top: 10px;
           }
@@ -3883,10 +4781,11 @@ function printStudentRecord() {
 
           ${includeFees ? `
             <div class="fee-summary">
-              <div><strong>Total</strong><br>₱${totalFees}</div>
+              <div><strong>Cash to Pay</strong><br>₱${totalFees}</div>
               <div><strong>Paid</strong><br>₱${paidFees}</div>
               <div><strong>Unpaid</strong><br>₱${unpaidFees}</div>
               <div><strong>Waived</strong><br>₱${waivedFees}</div>
+              <div><strong>Paid w/ Kindness</strong><br>${paidWithKindnessRecords}</div>
             </div>
           ` : ""}
         </div>
@@ -3931,7 +4830,7 @@ function printStudentRecord() {
 function openTermSummaryModal() {
   if (!termSummaryModal) return;
   renderTermSummary();
-  termSummaryModal.classList.remove("hidden");
+  openModal(termSummaryModal);
 }
 
 function closeTermSummary() {
@@ -3955,6 +4854,61 @@ if (viewerFeeAccessToggle) {
     localStorage.setItem("sfkViewerCanSeeFees", String(viewerCanSeeFees));
     applyFeeVisibility();
     showToast(viewerCanSeeFees ? "View Only can now see fees." : "Fees are hidden in View Only.");
+  });
+}
+
+
+function openActionBoardsModal() {
+  renderActionTracker(activeActionFilter);
+  renderKindnessBoard();
+  openModal(actionTrackerModal);
+}
+
+if (openActionTrackerModalBtn) {
+  openActionTrackerModalBtn.addEventListener("click", openActionBoardsModal);
+}
+
+if (quickActionBoardsBtn) {
+  quickActionBoardsBtn.addEventListener("click", openActionBoardsModal);
+}
+
+if (closeActionTrackerModal) {
+  closeActionTrackerModal.addEventListener("click", () => {
+    closeModal(actionTrackerModal);
+  });
+}
+
+if (actionTrackerModal) {
+  actionTrackerModal.addEventListener("click", event => {
+    if (event.target === actionTrackerModal) {
+      closeModal(actionTrackerModal);
+    }
+  });
+}
+
+
+if (kindnessSettlementTile) {
+  kindnessSettlementTile.addEventListener("click", openKindnessSettlementModal);
+}
+
+if (closeKindnessSettlementModal) {
+  closeKindnessSettlementModal.addEventListener("click", () => closeModal(kindnessSettlementModal));
+}
+
+if (kindnessSettlementModal) {
+  kindnessSettlementModal.addEventListener("click", event => {
+    if (event.target === kindnessSettlementModal) {
+      closeModal(kindnessSettlementModal);
+    }
+  });
+}
+
+if (actionTrackerSummary) {
+  actionTrackerSummary.addEventListener("click", event => {
+    const button = event.target.closest("button[data-action-filter]");
+    if (!button) return;
+    activeActionFilter = button.dataset.actionFilter || "all";
+    renderActionTracker(activeActionFilter);
   });
 }
 
@@ -3990,6 +4944,72 @@ if (termFilter) {
 }
 studentSort.addEventListener("change", renderStudents);
 studentSearch.addEventListener("input", renderStudents);
+
+if (addStatus) {
+  addStatus.addEventListener("change", () => {
+    applyPaidWithKindnessStatus(addStatus, addSettlementType, addViolationType, addKindnessTask, addKindnessStatus, addKindnessCompletedDate, addAdvancedFields);
+  });
+}
+
+if (editStatus) {
+  editStatus.addEventListener("change", () => {
+    applyPaidWithKindnessStatus(editStatus, editSettlementType, editViolationType, editKindnessTask, editKindnessStatus, editKindnessCompletedDate, null);
+  });
+}
+
+if (addViolationType) {
+  addViolationType.addEventListener("change", () => {
+    if (addKindnessTask) addKindnessTask.dataset.autoSuggested = "true";
+    applyPaidWithKindnessStatus(addStatus, addSettlementType, addViolationType, addKindnessTask, addKindnessStatus, addKindnessCompletedDate, addAdvancedFields);
+    syncKindnessTaskForForm(addSettlementType, addViolationType, addKindnessTask);
+  });
+}
+
+if (addSettlementType) {
+  addSettlementType.addEventListener("change", () => {
+    if (addKindnessTask) addKindnessTask.dataset.autoSuggested = "true";
+
+    if (isKindnessSettlementType(addSettlementType.value) && addAdvancedFields) {
+      addAdvancedFields.open = true;
+    }
+
+    syncKindnessTaskForForm(addSettlementType, addViolationType, addKindnessTask);
+  });
+}
+
+if (addKindnessTask) {
+  addKindnessTask.addEventListener("input", () => markKindnessTaskAsCustom(addKindnessTask));
+}
+
+if (addKindnessStatus) {
+  addKindnessStatus.addEventListener("change", () => {
+    syncKindnessCompletedDateForStatus(addKindnessStatus, addKindnessCompletedDate);
+  });
+}
+
+if (editViolationType) {
+  editViolationType.addEventListener("change", () => {
+    if (editKindnessTask) editKindnessTask.dataset.autoSuggested = "true";
+    syncKindnessTaskForForm(editSettlementType, editViolationType, editKindnessTask);
+  });
+}
+
+if (editSettlementType) {
+  editSettlementType.addEventListener("change", () => {
+    if (editKindnessTask) editKindnessTask.dataset.autoSuggested = "true";
+    syncKindnessTaskForForm(editSettlementType, editViolationType, editKindnessTask);
+  });
+}
+
+if (editKindnessTask) {
+  editKindnessTask.addEventListener("input", () => markKindnessTaskAsCustom(editKindnessTask));
+}
+
+if (editKindnessStatus) {
+  editKindnessStatus.addEventListener("change", () => {
+    syncKindnessCompletedDateForStatus(editKindnessStatus, editKindnessCompletedDate);
+  });
+}
 
 if (addForm) {
   addForm.addEventListener("submit", saveViolation);
@@ -4215,6 +5235,8 @@ if (attendanceList) {
     const target = event.target;
 
     if (!target.matches(".attendance-remarks[data-student-id]")) return;
+
+    ensureAttendanceSavedSnapshot(getAttendanceDateValue());
 
     setLocalAttendance(target.dataset.studentId, {
       remarks: target.value
