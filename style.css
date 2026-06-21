@@ -459,6 +459,19 @@ select {
   font-weight: 900;
 }
 
+.fee-item-record {
+  cursor: pointer;
+  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+.fee-item-record:hover,
+.fee-item-record:focus-visible {
+  border-color: var(--yellow);
+  box-shadow: 0 6px 18px rgba(161, 98, 7, .12);
+  transform: translateY(-1px);
+  outline: none;
+}
+
 .status {
   margin-top: 7px;
   font-weight: 900;
@@ -3389,6 +3402,7 @@ select {
   .fee-advanced-grid {
     grid-template-columns: 1fr;
   }
+
 }
 
 /* Attendance tools: hidden but easy to open, placed before checking list */

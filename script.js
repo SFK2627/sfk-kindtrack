@@ -3708,13 +3708,61 @@ function renderFeeList() {
 
   violationFees.forEach(v => {
     feeList.innerHTML += `
-      <div class="fee-item">
-        <strong>${v.name}</strong>
-        <div class="fee-text">₱${v.fee}</div>
+      <div
+        class="fee-item${appMode === "admin" ? " fee-item-record" : ""}"
+        ${appMode === "admin" ? `data-violation-name="${escapeHTML(v.name)}" role="button" tabindex="0" aria-label="Record ${escapeHTML(v.name)} violation"` : ""}
+      >
+        <strong>${escapeHTML(v.name)}</strong>
+        <div class="fee-text">₱${Number(v.fee) || 0}</div>
         ${v.kindnessAlternative ? `<small class="kindness-line">Kindness Alternative Payment: ${escapeHTML(v.kindnessAlternative)}${v.kindnessValue ? ` • ${escapeHTML(v.kindnessValue)}` : ""}</small>` : ""}
       </div>
     `;
   });
+
+  feeList.querySelectorAll(".fee-item-record").forEach(item => {
+    item.addEventListener("click", () => {
+      openAddViolationFromGuide(item.dataset.violationName || "");
+    });
+
+    item.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openAddViolationFromGuide(item.dataset.violationName || "");
+      }
+    });
+  });
+}
+
+function openAddViolationFromGuide(violationName) {
+  if (appMode !== "admin") {
+    showToast("Admin mode is required to record a violation.");
+    return;
+  }
+
+  const selectedType = violationFees.find(item => item.name === violationName);
+  if (!selectedType || !addForm || !addViolationType) {
+    showToast("Unable to open this violation type.");
+    return;
+  }
+
+  // Start with a clean record so only the student needs to be selected.
+  addForm.reset();
+  populateAddForm();
+  addViolationType.value = selectedType.name;
+
+  if (addKindnessTask) {
+    addKindnessTask.value = getSuggestedKindnessTaskForViolationName(selectedType.name);
+    addKindnessTask.dataset.autoSuggested = "true";
+  }
+
+  if (addAdvancedFields) addAdvancedFields.open = false;
+  if (addMessage) {
+    addMessage.textContent = "";
+    addMessage.classList.add("hidden");
+  }
+
+  openAddViolationModal();
+  showToast(`${selectedType.name} selected. Choose the student.`);
 }
 
 function openManageFeesModal() {
