@@ -364,6 +364,29 @@
         <option value="">Select Student</option>
       </select>
 
+      <section id="bulkStudentPicker" class="bulk-student-picker hidden" aria-label="Select students">
+        <div class="bulk-student-picker-head">
+          <div>
+            <strong>Select Students</strong>
+            <small id="bulkSelectedCount">0 selected</small>
+          </div>
+          <button type="button" id="clearBulkStudentsBtn" class="bulk-picker-link">Clear</button>
+        </div>
+
+        <input
+          type="search"
+          id="bulkStudentSearch"
+          placeholder="Search student..."
+          autocomplete="off"
+        />
+
+        <div class="bulk-picker-actions">
+          <button type="button" id="selectVisibleStudentsBtn">Select All Visible</button>
+        </div>
+
+        <div id="bulkStudentList" class="bulk-student-list"></div>
+      </section>
+
       <select id="addViolationType" required>
         <option value="">Select Violation</option>
       </select>
@@ -463,7 +486,7 @@
         </div>
       </details>
 
-      <button type="submit">Save Violation</button>
+      <button type="submit" id="addViolationSubmitBtn">Save Violation</button>
     </form>
 
     <p id="addMessage" class="empty-message hidden"></p>

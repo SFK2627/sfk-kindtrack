@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sfk-kindtrack-pwa-v4-guide-card-record';
+const CACHE_NAME = 'sfk-kindtrack-pwa-v5-guide-bulk-students';
 const APP_SHELL = [
   './',
   './index.html',
