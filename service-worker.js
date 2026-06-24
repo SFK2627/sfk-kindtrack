@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sfk-kindtrack-pwa-v8-public-view-auth-write';
+const CACHE_NAME = 'sfk-kindtrack-pwa-v10-auth-persist';
 const APP_SHELL = [
   './',
   './index.html',

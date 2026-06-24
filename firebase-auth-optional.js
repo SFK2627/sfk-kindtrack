@@ -1,5 +1,10 @@
 (function setupKindTrackOptionalAuth() {
   let pendingResolve = null;
+  let latestUser = null;
+  let authReadyResolve = null;
+  const authReady = new Promise((resolve) => {
+    authReadyResolve = resolve;
+  });
 
   function ensureStyles() {
     if (document.getElementById("kindTrackFirebaseAuthStyles")) return;
@@ -7,21 +12,6 @@
     const style = document.createElement("style");
     style.id = "kindTrackFirebaseAuthStyles";
     style.textContent = `
-      #kindTrackFirebaseAuthButton {
-        position: fixed;
-        right: 14px;
-        bottom: 14px;
-        z-index: 9999;
-        border: 3px solid #101010;
-        border-radius: 999px;
-        background: #ffcc00;
-        color: #101010;
-        box-shadow: 3px 3px 0 #101010;
-        font: 800 12px Arial, Helvetica, sans-serif;
-        padding: 9px 12px;
-        cursor: pointer;
-      }
-
       #kindTrackFirebaseAuthModal {
         position: fixed;
         inset: 0;
@@ -163,7 +153,8 @@
       submit.textContent = "Signing in...";
 
       try {
-        await firebase.auth().signInWithEmailAndPassword(email.value.trim(), password.value);
+        const credential = await firebase.auth().signInWithEmailAndPassword(email.value.trim(), password.value);
+        latestUser = credential.user || firebase.auth().currentUser || null;
         modal.classList.remove("is-open");
         if (pendingResolve) pendingResolve(true);
         pendingResolve = null;
@@ -179,39 +170,14 @@
     return modal;
   }
 
-  function ensureButton() {
-    ensureStyles();
-
-    let button = document.getElementById("kindTrackFirebaseAuthButton");
-    if (button) return button;
-
-    button = document.createElement("button");
-    button.id = "kindTrackFirebaseAuthButton";
-    button.type = "button";
-    button.addEventListener("click", async () => {
-      if (firebase.auth().currentUser) {
-        await firebase.auth().signOut();
-        return;
-      }
-
-      await window.SFK_KINDTRACK_AUTH.ensureSignedIn();
-    });
-    document.body.appendChild(button);
-    return button;
-  }
-
-  function updateButton(user) {
-    const button = ensureButton();
-    button.textContent = user ? "Firebase signed in" : "Firebase admin login";
-    button.title = user ? "Click to sign out" : "Login is needed only for saving admin changes.";
-  }
-
   async function ensureSignedIn() {
     if (!window.firebase || !firebase.auth) {
       throw new Error("Firebase Auth SDK is not loaded.");
     }
 
-    if (firebase.auth().currentUser) return true;
+    await authReady;
+
+    if (latestUser || firebase.auth().currentUser) return true;
 
     const modal = ensureModal();
     modal.classList.add("is-open");
@@ -226,6 +192,30 @@
     return;
   }
 
-  window.SFK_KINDTRACK_AUTH = { ensureSignedIn };
-  firebase.auth().onAuthStateChanged(updateButton);
+  ensureStyles();
+
+  const persistence = firebase.auth.Auth && firebase.auth.Auth.Persistence
+    ? firebase.auth.Auth.Persistence.LOCAL
+    : null;
+
+  const persistenceReady = persistence
+    ? firebase.auth().setPersistence(persistence).catch((error) => {
+      console.warn("Firebase auth persistence fallback:", error);
+    })
+    : Promise.resolve();
+
+  persistenceReady.finally(() => {
+    firebase.auth().onAuthStateChanged((user) => {
+      latestUser = user || null;
+      if (authReadyResolve) {
+        authReadyResolve();
+        authReadyResolve = null;
+      }
+    });
+  });
+
+  window.SFK_KINDTRACK_AUTH = {
+    ensureSignedIn,
+    getCurrentUser: () => latestUser || firebase.auth().currentUser || null
+  };
 })();
