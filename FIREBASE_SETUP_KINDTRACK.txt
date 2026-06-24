@@ -1,0 +1,37 @@
+SFK KindTrack Firebase Setup
+
+Project used:
+sfk-kindtrack
+
+Important files:
+1. index.html
+   - Main KindTrack app.
+   - Now uses Firebase Firestore through firebase-adapter.js.
+
+2. firebase-import.html
+   - Open this first after uploading to GitHub Pages.
+   - Click "Import to Firebase" once to copy existing Apps Script / Google Sheets data to Firestore.
+
+3. firebase-config.js
+   - Contains the Firebase web app config for sfk-kindtrack.
+
+4. firebase-adapter.js
+   - Replaces the old Apps Script calls at runtime.
+   - The old script.js can still stay mostly unchanged.
+
+Firestore collections created by the import:
+- kindtrack_students
+- kindtrack_violation_types
+- kindtrack_violations
+- kindtrack_settings
+- kindtrack_attendance
+
+No Firebase Storage is needed.
+No billing upgrade is needed for this KindTrack setup.
+
+Quick order:
+1. Upload all files to the KindTrack GitHub repo.
+2. Open firebase-import.html.
+3. Click Import to Firebase.
+4. When it says Done, open index.html.
+5. Test add/edit/delete violation and save attendance.

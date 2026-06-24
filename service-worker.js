@@ -1,8 +1,11 @@
-const CACHE_NAME = 'sfk-kindtrack-pwa-v5-guide-bulk-students';
+const CACHE_NAME = 'sfk-kindtrack-pwa-v6-firebase';
 const APP_SHELL = [
   './',
   './index.html',
   './style.css',
+  './firebase-config.js',
+  './firebase-adapter.js',
+  './firebase-import.html',
   './script.js',
   './manifest.json',
   './icons/icon-192.png',
@@ -26,8 +29,13 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const requestUrl = new URL(event.request.url);
 
-  // Always use the network for Google Apps Script/API requests and form posts.
-  if (requestUrl.hostname.includes('script.google.com') || event.request.method !== 'GET') {
+  // Always use the network for API requests and form posts.
+  if (
+    requestUrl.hostname.includes('script.google.com') ||
+    requestUrl.hostname.includes('firestore.googleapis.com') ||
+    requestUrl.hostname.includes('firebase') ||
+    event.request.method !== 'GET'
+  ) {
     return;
   }
 
