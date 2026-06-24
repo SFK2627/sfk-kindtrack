@@ -28,7 +28,6 @@ function normalizeAttendanceStatusValue(status) {
   return "Present";
 }
 
-const ADMIN_PASSCODE = "SFK2026";
 let appMode = null;
 
 
@@ -230,31 +229,41 @@ function initAccessGate() {
     });
   }
 
-  if (showAdminLoginBtn && adminLoginForm && adminPasscode) {
-    showAdminLoginBtn.addEventListener("click", () => {
-      adminLoginForm.classList.remove("hidden");
-      adminPasscode.focus();
-      if (accessMessage) accessMessage.textContent = "";
+  if (showAdminLoginBtn) {
+    showAdminLoginBtn.addEventListener("click", async () => {
+      if (accessMessage) accessMessage.textContent = "Opening admin login...";
+
+      try {
+        const signedIn = window.SFK_KINDTRACK_AUTH
+          ? await window.SFK_KINDTRACK_AUTH.ensureSignedIn()
+          : false;
+
+        if (signedIn) {
+          openKindTrack("admin");
+          return;
+        }
+
+        if (accessMessage) accessMessage.textContent = "Admin login was cancelled.";
+      } catch (error) {
+        console.error("Admin Firebase login error:", error);
+        if (accessMessage) accessMessage.textContent = "Unable to open admin login. Please refresh and try again.";
+      }
     });
   }
 
   if (adminLoginForm) {
-    adminLoginForm.addEventListener("submit", event => {
+    adminLoginForm.addEventListener("submit", async event => {
       event.preventDefault();
 
-      const passcode = adminPasscode ? adminPasscode.value.trim() : "";
+      try {
+        const signedIn = window.SFK_KINDTRACK_AUTH
+          ? await window.SFK_KINDTRACK_AUTH.ensureSignedIn()
+          : false;
 
-      if (passcode === ADMIN_PASSCODE) {
-        openKindTrack("admin");
-      } else {
-        if (accessMessage) {
-          accessMessage.textContent = "Incorrect passcode. Please try again.";
-        }
-
-        if (adminPasscode) {
-          adminPasscode.value = "";
-          adminPasscode.focus();
-        }
+        if (signedIn) openKindTrack("admin");
+      } catch (error) {
+        console.error("Admin Firebase login error:", error);
+        if (accessMessage) accessMessage.textContent = "Unable to open admin login. Please refresh and try again.";
       }
     });
   }

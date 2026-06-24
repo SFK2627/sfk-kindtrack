@@ -108,8 +108,8 @@
     modal.id = "kindTrackFirebaseAuthModal";
     modal.innerHTML = `
       <div class="kindtrack-firebase-auth-card">
-        <h2>Firebase Admin Login</h2>
-        <p>View Only can open without login. Login is only needed for saving changes.</p>
+        <h2>Admin Login</h2>
+        <p>Use the Firebase admin account to open editing tools.</p>
 
         <form id="kindTrackFirebaseAuthForm">
           <label>

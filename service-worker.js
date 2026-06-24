@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sfk-kindtrack-pwa-v10-auth-persist';
+const CACHE_NAME = 'sfk-kindtrack-pwa-v11-firebase-admin-login';
 const APP_SHELL = [
   './',
   './index.html',
