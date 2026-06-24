@@ -1,201 +1,224 @@
-(function setupKindTrackAuthGate() {
-  const APP_SCRIPTS = ["firebase-adapter.js", "script.js"];
-  let appLoaded = false;
+(function setupKindTrackOptionalAuth() {
+  let pendingResolve = null;
 
-  function loadScript(src) {
-    return new Promise((resolve, reject) => {
-      const script = document.createElement("script");
-      script.src = src;
-      script.onload = resolve;
-      script.onerror = () => reject(new Error(`Unable to load ${src}`));
-      document.body.appendChild(script);
-    });
-  }
-
-  async function loadKindTrackApp() {
-    if (appLoaded) return;
-    appLoaded = true;
-
-    for (const src of APP_SCRIPTS) {
-      await loadScript(src);
-    }
-  }
-
-  function ensureOverlay() {
-    let overlay = document.getElementById("kindTrackAuthGate");
-    if (overlay) return overlay;
-
-    overlay = document.createElement("div");
-    overlay.id = "kindTrackAuthGate";
-    overlay.innerHTML = `
-      <div class="kindtrack-auth-card">
-        <div class="kindtrack-auth-logo">SFK</div>
-        <h1>SFK KindTrack Login</h1>
-        <p>Sign in first to open the KindTrack records.</p>
-
-        <form id="kindTrackLoginForm">
-          <label>
-            Email
-            <input id="kindTrackLoginEmail" type="email" autocomplete="username" required />
-          </label>
-
-          <label>
-            Password
-            <input id="kindTrackLoginPassword" type="password" autocomplete="current-password" required />
-          </label>
-
-          <button id="kindTrackLoginButton" type="submit">Sign In</button>
-        </form>
-
-        <p id="kindTrackLoginMessage" class="kindtrack-auth-message"></p>
-      </div>
-    `;
+  function ensureStyles() {
+    if (document.getElementById("kindTrackFirebaseAuthStyles")) return;
 
     const style = document.createElement("style");
+    style.id = "kindTrackFirebaseAuthStyles";
     style.textContent = `
-      #kindTrackAuthGate {
+      #kindTrackFirebaseAuthButton {
+        position: fixed;
+        right: 14px;
+        bottom: 14px;
+        z-index: 9999;
+        border: 3px solid #101010;
+        border-radius: 999px;
+        background: #ffcc00;
+        color: #101010;
+        box-shadow: 3px 3px 0 #101010;
+        font: 800 12px Arial, Helvetica, sans-serif;
+        padding: 9px 12px;
+        cursor: pointer;
+      }
+
+      #kindTrackFirebaseAuthModal {
         position: fixed;
         inset: 0;
-        z-index: 99999;
-        display: grid;
+        z-index: 100000;
+        display: none;
         place-items: center;
         padding: 18px;
-        background:
-          linear-gradient(rgba(255, 251, 234, .94), rgba(255, 251, 234, .94)),
-          repeating-linear-gradient(0deg, transparent 0 31px, rgba(0, 0, 0, .05) 31px 32px),
-          repeating-linear-gradient(90deg, transparent 0 31px, rgba(0, 0, 0, .05) 31px 32px);
+        background: rgba(16, 16, 16, .38);
+      }
+
+      #kindTrackFirebaseAuthModal.is-open {
+        display: grid;
+      }
+
+      .kindtrack-firebase-auth-card {
+        width: min(420px, 100%);
+        border: 3px solid #101010;
+        border-radius: 16px;
+        background: #fffbea;
+        box-shadow: 7px 7px 0 #101010;
+        padding: 22px;
         font-family: Arial, Helvetica, sans-serif;
         color: #101010;
       }
 
-      .kindtrack-auth-card {
-        width: min(420px, 100%);
-        border: 3px solid #101010;
-        border-radius: 16px;
-        background: #fff;
-        box-shadow: 7px 7px 0 #101010;
-        padding: 24px;
-      }
-
-      .kindtrack-auth-logo {
-        width: 54px;
-        height: 54px;
-        display: grid;
-        place-items: center;
-        border: 3px solid #101010;
-        border-radius: 14px;
-        background: #ffcc00;
-        box-shadow: 4px 4px 0 #101010;
-        font-weight: 900;
-        margin-bottom: 14px;
-      }
-
-      .kindtrack-auth-card h1 {
+      .kindtrack-firebase-auth-card h2 {
         margin: 0 0 6px;
-        font-size: 28px;
+        font-size: 24px;
       }
 
-      .kindtrack-auth-card p {
-        margin: 0 0 18px;
+      .kindtrack-firebase-auth-card p {
+        margin: 0 0 16px;
+        line-height: 1.35;
       }
 
-      #kindTrackLoginForm {
+      #kindTrackFirebaseAuthForm {
         display: grid;
         gap: 12px;
       }
 
-      #kindTrackLoginForm label {
+      #kindTrackFirebaseAuthForm label {
         display: grid;
         gap: 6px;
         font-weight: 800;
       }
 
-      #kindTrackLoginForm input {
+      #kindTrackFirebaseAuthForm input {
         width: 100%;
         border: 2px solid #101010;
         border-radius: 10px;
-        padding: 12px;
+        padding: 11px;
         font: inherit;
       }
 
-      #kindTrackLoginButton,
-      #kindTrackSignOutButton {
+      .kindtrack-firebase-auth-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+      }
+
+      .kindtrack-firebase-auth-actions button {
         border: 3px solid #101010;
         border-radius: 999px;
         background: #ffcc00;
         color: #101010;
-        box-shadow: 4px 4px 0 #101010;
+        box-shadow: 3px 3px 0 #101010;
         font-weight: 900;
-        padding: 12px 16px;
+        padding: 10px 14px;
         cursor: pointer;
       }
 
-      #kindTrackLoginButton:disabled {
-        opacity: .65;
-        cursor: wait;
+      .kindtrack-firebase-auth-actions button.secondary {
+        background: #fff;
       }
 
-      .kindtrack-auth-message {
+      #kindTrackFirebaseAuthMessage {
         min-height: 20px;
-        margin-top: 14px !important;
+        margin-top: 12px !important;
         color: #b00020;
         font-weight: 800;
       }
-
-      #kindTrackSignOutButton {
-        position: fixed;
-        right: 14px;
-        bottom: 14px;
-        z-index: 9999;
-        padding: 9px 12px;
-        font-size: 12px;
-        box-shadow: 3px 3px 0 #101010;
-      }
     `;
-
     document.head.appendChild(style);
-    document.body.appendChild(overlay);
+  }
 
-    const form = document.getElementById("kindTrackLoginForm");
-    const email = document.getElementById("kindTrackLoginEmail");
-    const password = document.getElementById("kindTrackLoginPassword");
-    const button = document.getElementById("kindTrackLoginButton");
-    const message = document.getElementById("kindTrackLoginMessage");
+  function ensureModal() {
+    ensureStyles();
+
+    let modal = document.getElementById("kindTrackFirebaseAuthModal");
+    if (modal) return modal;
+
+    modal = document.createElement("div");
+    modal.id = "kindTrackFirebaseAuthModal";
+    modal.innerHTML = `
+      <div class="kindtrack-firebase-auth-card">
+        <h2>Firebase Admin Login</h2>
+        <p>View Only can open without login. Login is only needed for saving changes.</p>
+
+        <form id="kindTrackFirebaseAuthForm">
+          <label>
+            Email
+            <input id="kindTrackFirebaseEmail" type="email" autocomplete="username" required />
+          </label>
+
+          <label>
+            Password
+            <input id="kindTrackFirebasePassword" type="password" autocomplete="current-password" required />
+          </label>
+
+          <div class="kindtrack-firebase-auth-actions">
+            <button class="secondary" id="kindTrackFirebaseCancel" type="button">Cancel</button>
+            <button id="kindTrackFirebaseSubmit" type="submit">Sign In</button>
+          </div>
+        </form>
+
+        <p id="kindTrackFirebaseAuthMessage"></p>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const form = document.getElementById("kindTrackFirebaseAuthForm");
+    const cancel = document.getElementById("kindTrackFirebaseCancel");
+    const submit = document.getElementById("kindTrackFirebaseSubmit");
+    const email = document.getElementById("kindTrackFirebaseEmail");
+    const password = document.getElementById("kindTrackFirebasePassword");
+    const message = document.getElementById("kindTrackFirebaseAuthMessage");
+
+    cancel.addEventListener("click", () => {
+      modal.classList.remove("is-open");
+      if (pendingResolve) pendingResolve(false);
+      pendingResolve = null;
+    });
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       message.textContent = "";
-      button.disabled = true;
-      button.textContent = "Signing in...";
+      submit.disabled = true;
+      submit.textContent = "Signing in...";
 
       try {
         await firebase.auth().signInWithEmailAndPassword(email.value.trim(), password.value);
+        modal.classList.remove("is-open");
+        if (pendingResolve) pendingResolve(true);
+        pendingResolve = null;
       } catch (error) {
         message.textContent = "Login failed. Check email/password.";
-        console.error("KindTrack login error:", error);
+        console.error("Firebase login error:", error);
       } finally {
-        button.disabled = false;
-        button.textContent = "Sign In";
+        submit.disabled = false;
+        submit.textContent = "Sign In";
       }
     });
 
-    return overlay;
+    return modal;
   }
 
-  function addSignOutButton() {
-    if (document.getElementById("kindTrackSignOutButton")) return;
+  function ensureButton() {
+    ensureStyles();
 
-    const button = document.createElement("button");
-    button.id = "kindTrackSignOutButton";
+    let button = document.getElementById("kindTrackFirebaseAuthButton");
+    if (button) return button;
+
+    button = document.createElement("button");
+    button.id = "kindTrackFirebaseAuthButton";
     button.type = "button";
-    button.textContent = "Sign out";
-    button.addEventListener("click", () => firebase.auth().signOut());
+    button.addEventListener("click", async () => {
+      if (firebase.auth().currentUser) {
+        await firebase.auth().signOut();
+        return;
+      }
+
+      await window.SFK_KINDTRACK_AUTH.ensureSignedIn();
+    });
     document.body.appendChild(button);
+    return button;
   }
 
-  function removeSignOutButton() {
-    const button = document.getElementById("kindTrackSignOutButton");
-    if (button) button.remove();
+  function updateButton(user) {
+    const button = ensureButton();
+    button.textContent = user ? "Firebase signed in" : "Firebase admin login";
+    button.title = user ? "Click to sign out" : "Login is needed only for saving admin changes.";
+  }
+
+  async function ensureSignedIn() {
+    if (!window.firebase || !firebase.auth) {
+      throw new Error("Firebase Auth SDK is not loaded.");
+    }
+
+    if (firebase.auth().currentUser) return true;
+
+    const modal = ensureModal();
+    modal.classList.add("is-open");
+
+    return new Promise((resolve) => {
+      pendingResolve = resolve;
+    });
   }
 
   if (!window.firebase || !firebase.auth) {
@@ -203,24 +226,6 @@
     return;
   }
 
-  ensureOverlay();
-
-  firebase.auth().onAuthStateChanged((user) => {
-    const overlay = ensureOverlay();
-
-    if (!user) {
-      overlay.style.display = "grid";
-      removeSignOutButton();
-      return;
-    }
-
-    overlay.style.display = "none";
-    addSignOutButton();
-    loadKindTrackApp().catch((error) => {
-      overlay.style.display = "grid";
-      const message = document.getElementById("kindTrackLoginMessage");
-      if (message) message.textContent = error.message || "Unable to load app.";
-      console.error(error);
-    });
-  });
+  window.SFK_KINDTRACK_AUTH = { ensureSignedIn };
+  firebase.auth().onAuthStateChanged(updateButton);
 })();

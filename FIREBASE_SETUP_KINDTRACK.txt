@@ -39,6 +39,7 @@ Quick order:
 Auth lock update:
 1. Enable Firebase Authentication > Email/Password.
 2. Add at least one user in Authentication > Users.
-3. Upload the updated files including firebase-auth-gate.js.
-4. Test login first.
-5. After login works, paste FIRESTORE_RULES_SIGNED_IN.txt into Firestore Rules and publish.
+3. Upload the updated files including firebase-auth-optional.js.
+4. View Only should open without Firebase login.
+5. Admin write actions ask for Firebase login before saving.
+6. After View Only and admin write login work, paste FIRESTORE_RULES_SIGNED_IN.txt into Firestore Rules and publish.

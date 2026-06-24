@@ -1,922 +1,3655 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#111111" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-title" content="KindTrack" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>SFK KindTrack</title>
-  <link rel="manifest" href="manifest.json" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
-  <link rel="apple-touch-icon" href="icons/icon-192.png" />
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body>
-
-<section id="accessScreen" class="access-screen">
-  <div class="access-card">
-    <div class="access-logo">🐨</div>
-    <h1>SFK KindTrack</h1>
-    <p>Choose how you want to open the system.</p>
-
-    <div class="access-actions">
-      <button type="button" id="viewOnlyBtn">View Only</button>
-      <button type="button" id="showAdminLoginBtn">Admin Login</button>
-    </div>
-
-    <form id="adminLoginForm" class="admin-login hidden">
-      <input
-        type="password"
-        id="adminPasscode"
-        placeholder="Enter admin passcode"
-        autocomplete="off"
-      />
-      <button type="submit">Open Admin</button>
-    </form>
-
-    <p id="accessMessage" class="access-message"></p>
-  </div>
-</section>
-
-<div id="appRoot" class="app-root hidden">
-
-<header>
-  <div>
-    <div class="app-badge">🐨 SFK KindTrack</div>
-    <h1>Responsibility & Violation Viewer</h1>
-    <p class="tagline">Track with fairness. Guide with kindness.</p>
-    <p class="bekind">#BeKind</p>
-  </div>
-
-  <button id="feeToggle">Hide Fees</button>
-</header>
-
-
-<section class="mode-bar">
-  <div>
-    <strong id="modeLabel">View Only Mode</strong>
-    <span id="modeDescription">Records are viewable. Editing tools are locked.</span>
-  </div>
-  <label class="viewer-fee-control admin-only">
-    <input type="checkbox" id="viewerFeeAccessToggle" />
-    Allow fees in View Only
-  </label>
-  <button type="button" id="logoutAccessBtn">Switch Mode</button>
-</section>
-
-<section class="admin-shortcuts admin-only">
-  <button type="button" id="quickAddViolationBtn">➕ Add Violation</button>
-  <button type="button" id="quickAttendanceBtn">📅 Attendance</button>
-  <button type="button" id="quickManageFeesBtn">⚙ Manage Fees</button>
-  <button type="button" id="quickActionBoardsBtn">📋 Action Boards</button>
-  <button type="button" id="quickSummaryBtn">📊 Summary</button>
-  <button type="button" id="quickPrintAllBtn">🖨 Print All</button>
-</section>
-
-<section class="dashboard">
-  <div>📌 Total Violations <b id="totalViolations">0</b></div>
-  <div>⚠️ Students with Alerts <b id="alertCount">0</b></div>
-  <div class="fee-info">💵 To Pay with Cash <b id="totalFees">₱0</b></div>
-  <button type="button" id="kindnessSettlementTile" class="dashboard-kindness-tile">
-    🤝 To Settle with Kindness <b id="kindnessSettlementCount">0</b>
-  </button>
-  <div class="kindness-paid-info">🤝 Paid with Kindness <b id="paidWithKindnessCount">0</b></div>
-  <div class="fee-info">✅ Collected Funds <b id="collectedFees">₱0</b></div>
-</section>
-
-<div class="modal hidden" id="kindnessSettlementModal">
-  <div class="modal-card kindness-settlement-modal-card">
-    <div class="modal-title-row">
-      <div>
-        <h2>🤝 To Settle with Kindness</h2>
-        <p class="modal-subtitle">Records where settlement type is Kindness Alternative Payment.</p>
-      </div>
-      <button type="button" id="closeKindnessSettlementModal" class="modal-x">×</button>
-    </div>
-
-    <div id="kindnessSettlementSummary" class="kindness-settlement-summary">
-      <span>Total: 0</span>
-      <span>Pending: 0</span>
-      <span>Completed: 0</span>
-    </div>
-
-    <div id="kindnessSettlementList" class="kindness-settlement-list">
-      <p class="empty-message">No kindness alternative settlements yet.</p>
-    </div>
-  </div>
-</div>
-
-<div class="modal hidden" id="actionTrackerModal">
-  <div class="modal-card action-tracker-modal-card">
-    <div class="modal-title-row">
-      <div>
-        <h2>📋 Pending Actions & Kindness Board</h2>
-        <p class="modal-subtitle">Follow-ups, kindness payments, unpaid records, and parent-contact tasks.</p>
-      </div>
-      <button type="button" id="closeActionTrackerModal" class="modal-x">×</button>
-    </div>
-
-    <div id="actionTrackerSummary" class="action-tracker-summary">
-      <button type="button" data-action-filter="all">All Actions: 0</button>
-      <button type="button" data-action-filter="followup">Follow-ups: 0</button>
-      <button type="button" data-action-filter="kindness">Kindness Pending: 0</button>
-      <button type="button" data-action-filter="unpaid">Unpaid: 0</button>
-      <button type="button" data-action-filter="parent">Parent Contact: 0</button>
-    </div>
-
-    <div class="action-tracker-layout">
-      <div class="action-list-card">
-        <div class="action-list-title">
-          <strong>Needs Action</strong>
-          <small id="actionTrackerLabel">All pending items</small>
-        </div>
-        <div id="pendingActionList" class="pending-action-list">
-          <p class="empty-message">No pending actions yet. 🐨</p>
-        </div>
-      </div>
-
-      <div class="kindness-board-card">
-        <div class="action-list-title">
-          <strong>Kindness Alternative Payment Board</strong>
-          <small>Pending and completed restorative tasks</small>
-        </div>
-        <div id="kindnessBoardSummary" class="kindness-board-summary">
-          <span>Pending: 0</span>
-          <span>Completed: 0</span>
-        </div>
-        <div id="kindnessBoardList" class="kindness-board-list">
-          <p class="empty-message">No kindness alternative payments yet.</p>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<section class="term-panel">
-  <div>
-    <strong>Viewing Records</strong>
-    <span id="currentTermLabel">All Terms</span>
-  </div>
-
-  <select id="termFilter">
-    <option value="all">All Terms</option>
-    <option value="term1">1st Term: Jun 1 – Sep 9</option>
-    <option value="term2">2nd Term: Sep 10 – Dec 15</option>
-    <option value="term3">3rd Term: Jan 4 – Apr 3</option>
-  </select>
-  <button id="openTermSummaryBtn" class="summary-btn" type="button">
-    📊 View Summary
-  </button>
-</section>
-
-<section class="attendance-summary-panel">
-  <div class="attendance-header">
-    <div>
-      <h2>📅 Daily Attendance</h2>
-      <p id="attendanceQuickDate" class="attendance-date-line">Today</p>
-      <p class="attendance-helper-copy">Quick view for today. Open only when you need to encode or review details.</p>
-    </div>
-    <button id="openAttendanceModalBtn" class="summary-btn" type="button">
-      Open Attendance
-    </button>
-  </div>
-
-  <div id="attendanceQuickSummary" class="attendance-summary">
-    <span>Present: 0</span>
-    <span>Absent: 0</span>
-    <span>Excused: 0</span>
-    <span>Tardy: 0</span>
-    <span>Total: 0</span>
-  </div>
-</section>
-
-<div class="modal hidden" id="attendanceModal">
-  <div class="modal-card attendance-modal-card">
-    <div class="attendance-header">
-      <div>
-        <h2>📅 Daily Attendance</h2>
-        <p>Encode and review attendance for the selected date.</p>
-      </div>
-      <div class="attendance-list-actions">
-        <button id="todayAttendanceBtn" class="summary-btn" type="button">
-          Today
-        </button>
-        <button type="button" id="closeAttendanceModal" class="modal-x">×</button>
-      </div>
-    </div>
-
-  <div class="attendance-toolbar">
-    <label>
-      Date
-      <input type="date" id="attendanceDate" />
-    </label>
-  </div>
-
-  <p class="viewer-attendance-note">
-    View Only Mode shows the daily attendance summary and board only.
-  </p>
-
-  <details class="attendance-mobile-tools attendance-tools-panel">
-    <summary>
-      <span>🔎 Search, Filter, Sort & Summary</span>
-      <small>Open only when needed</small>
-    </summary>
-
-    <div class="attendance-toolbar attendance-extra-toolbar">
-      <label>
-        Search
-        <input
-          type="text"
-          id="attendanceSearch"
-          placeholder="Search student..."
-          autocomplete="off"
-        />
-      </label>
-
-      <label>
-        Filter
-        <select id="attendanceFilter">
-          <option value="all">All Students</option>
-          <option value="Present">Present</option>
-          <option value="Absent">Absent</option>
-          <option value="Excused">Excused</option>
-          <option value="Tardy">Tardy</option>
-        </select>
-      </label>
-
-      <label>
-        Sort
-        <select id="attendanceSort">
-          <option value="az">A-Z</option>
-          <option value="boysGirls">Boys first, then Girls</option>
-          <option value="exceptions">Needs attention first</option>
-          <option value="Present">Present first</option>
-          <option value="Absent">Absent first</option>
-          <option value="Excused">Excused first</option>
-          <option value="Tardy">Tardy first</option>
-        </select>
-      </label>
-    </div>
-
-    <div id="attendanceSummary" class="attendance-summary">
-      <span>Present: 0</span>
-      <span>Absent: 0</span>
-      <span>Excused: 0</span>
-      <span>Tardy: 0</span>
-      <span>Total: 0</span>
-    </div>
-
-    <div class="attendance-board">
-      <div class="attendance-board-header">
-        <div>
-          <strong id="attendanceBoardTitle">Selected Date Attendance</strong>
-          <span id="attendanceBoardDate"></span>
-        </div>
-        <label class="show-all-toggle">
-          <input type="checkbox" id="attendanceShowAll" />
-          Show All Students
-        </label>
-      </div>
-      <div id="attendanceBoardList" class="attendance-board-list">
-        <p class="empty-message">Choose a date to view attendance.</p>
-      </div>
-    </div>
-  </details>
-
-  <p class="admin-attendance-note admin-only">
-    All students are Present by default. Choose a status, then tap student names.
-  </p>
-
-  <div class="attendance-mark-mode admin-only">
-    <span>Mark as</span>
-    <button type="button" data-attendance-mode="Absent" class="active">Absent</button>
-    <button type="button" data-attendance-mode="Tardy">Tardy / Late</button>
-    <button type="button" data-attendance-mode="Excused">Excused</button>
-    <button type="button" data-attendance-mode="Present">Present / Reset</button>
-  </div>
-
-  <div class="attendance-list-shell">
-    <div class="attendance-list-header">
-      <strong>Student Attendance List</strong>
-      <div class="attendance-list-actions">
-        <button id="printAttendanceBtn" class="print-btn" type="button">
-          🖨 Print Attendance
-        </button>
-        <button id="saveAttendanceBtn" class="print-btn admin-only" type="button">
-          Save Attendance
-        </button>
-      </div>
-    </div>
-    <div id="attendanceList" class="attendance-list">
-      <p class="empty-message">Loading students...</p>
-    </div>
-    <p id="attendanceMessage" class="empty-message hidden"></p>
-  </div>
-
-  <details class="monthly-attendance">
-    <summary>Monthly Attendance Summary</summary>
-    <div class="attendance-board-header">
-      <div>
-        <span>Counts per student for the selected month.</span>
-      </div>
-      <div class="monthly-attendance-actions">
-        <input type="month" id="attendanceMonth" />
-        <button id="downloadMonthlyAttendanceBtn" class="print-btn" type="button">
-          ⬇ Download Spreadsheet
-        </button>
-        <button id="printMonthlyAttendanceBtn" class="print-btn" type="button">
-          🖨 Print Monthly
-        </button>
-      </div>
-    </div>
-    <div id="monthlyAttendanceList" class="monthly-attendance-list">
-      <p class="empty-message">No monthly attendance yet.</p>
-    </div>
-  </details>
-  </div>
-</div>
-
-<section class="alert-center">
-  <div class="alert-header">
-    <h2>🚨 Alert Center</h2>
-    <span>#BeKind</span>
-  </div>
-
-  <div id="alertList">
-    <p class="empty-message">No alerts yet. 🐨</p>
-  </div>
-</section>
-
-<div class="modal hidden admin-only" id="addPanel">
-  <div class="modal-card add-violation-card" id="addPanelContent">
-    <div class="modal-title-row">
-      <div>
-        <h2>➕ Add Violation</h2>
-        <p class="modal-subtitle">Required fields first. Guidance notes are optional.</p>
-      </div>
-      <button id="addPanelToggle" type="button" class="modal-x">×</button>
-    </div>
-
-    <form id="addViolationForm" class="add-form">
-      <select id="addStudent" required>
-        <option value="">Select Student</option>
-      </select>
-
-      <section id="bulkStudentPicker" class="bulk-student-picker hidden" aria-label="Select students">
-        <div class="bulk-student-picker-head">
-          <div>
-            <strong>Select Students</strong>
-            <small id="bulkSelectedCount">0 selected</small>
-          </div>
-          <button type="button" id="clearBulkStudentsBtn" class="bulk-picker-link">Clear</button>
-        </div>
-
-        <input
-          type="search"
-          id="bulkStudentSearch"
-          placeholder="Search student..."
-          autocomplete="off"
-        />
-
-        <div class="bulk-picker-actions">
-          <button type="button" id="selectVisibleStudentsBtn">Select All Visible</button>
-        </div>
-
-        <div id="bulkStudentList" class="bulk-student-list"></div>
-      </section>
-
-      <select id="addViolationType" required>
-        <option value="">Select Violation</option>
-      </select>
-
-      <select id="addStatus" required>
-        <option value="Unpaid">Unpaid</option>
-        <option value="Paid">Paid</option>
-        <option value="Paid with Kindness">Paid with Kindness</option>
-        <option value="Waived">Waived</option>
-      </select>
-
-      <label class="main-form-field settlement-main-field">
-        Settlement Type
-        <select id="addSettlementType">
-          <option value="Cash">Cash</option>
-          <option value="Kindness Alternative">Kindness Alternative Payment</option>
-          <option value="Waived">Waived</option>
-        </select>
-      </label>
-
-      <select id="addActionTaken">
-        <option value="Verbal Reminder">Verbal Reminder</option>
-        <option value="Parent Notified">Parent Notified</option>
-        <option value="Reflection Given">Reflection Given</option>
-        <option value="Guidance Referral">Guidance Referral</option>
-        <option value="Paid / Settled">Paid / Settled</option>
-        <option value="Other">Other</option>
-      </select>
-
-      <input type="date" id="addDate" required />
-
-      <details class="advanced-fields" id="addAdvancedFields">
-        <summary>Optional guidance details</summary>
-
-        <div class="advanced-fields-grid">
-          <label>
-            Follow-up Date
-            <input type="date" id="addFollowUpDate" />
-          </label>
-
-          <label>
-            Follow-up Status
-            <select id="addFollowUpStatus">
-              <option value="Pending">Pending</option>
-              <option value="Improved">Improved</option>
-              <option value="Repeated">Repeated</option>
-              <option value="Resolved">Resolved</option>
-            </select>
-          </label>
-
-          <label>
-            Parent Contacted
-            <select id="addParentContacted">
-              <option value="No">No</option>
-              <option value="Yes">Yes</option>
-            </select>
-          </label>
-
-          <label class="wide-field">
-            Kindness Task
-            <input
-              type="text"
-              id="addKindnessTask"
-              placeholder="Kindness alternative payment task optional..."
-            />
-          </label>
-
-          <label>
-            Kindness Status
-            <select id="addKindnessStatus">
-              <option value="Pending">Pending</option>
-              <option value="Completed">Completed</option>
-            </select>
-          </label>
-
-          <label>
-            Kindness Completed Date
-            <input type="date" id="addKindnessCompletedDate" />
-          </label>
-
-          <label class="wide-field">
-            Reflection / Commitment
-            <textarea
-              id="addReflection"
-              placeholder="Student reflection or commitment optional..."
-            ></textarea>
-          </label>
-
-          <label class="wide-field">
-            Notes
-            <input
-              type="text"
-              id="addNotes"
-              placeholder="Notes optional..."
-            />
-          </label>
-        </div>
-      </details>
-
-      <button type="submit" id="addViolationSubmitBtn">Save Violation</button>
-    </form>
-
-    <p id="addMessage" class="empty-message hidden"></p>
-  </div>
-</div>
-
-<main>
-  <aside class="student-panel" id="studentPanel">
-    <div class="student-panel-top">
-      <div>
-        <h2>Students</h2>
-        <p class="student-panel-hint">Tap the button to show the class list on phone view.</p>
-      </div>
-      <button id="mobileStudentToggle" class="mobile-student-toggle" type="button" aria-expanded="false">
-        👥 View Students
-      </button>
-    </div>
-
-    <div id="studentControls" class="student-controls">
-      <button id="printAllBtn" class="print-btn print-all-btn admin-only" type="button">
-        🖨 Print All Records
-      </button>
-
-      <input
-        type="text"
-        id="studentSearch"
-        placeholder="Search student..."
-        autocomplete="off"
-      />
-
-      <select id="studentSort">
-        <option value="az">Alphabetical A-Z</option>
-        <option value="boysGirls">Boys first, then Girls</option>
-        <option value="most">Most Violations</option>
-        <option value="newest">Newest Violation</option>
-        <option value="alerts">With Alerts</option>
-      </select>
-
-      <div id="studentList"></div>
-    </div>
-  </aside>
-
-  <section class="details-panel">
-    <h2 id="selectedName">Select a student</h2>
-    <div id="studentSummary"></div>
-    <button id="printRecordBtn" class="print-btn admin-only">
-      🖨 Print Student Record
-    </button>
-
-    <h3>Violation History</h3>
-
-    <select id="violationFilter">
-      <option value="all">All Violations</option>
-      <option value="paid">Paid</option>
-      <option value="paidwithkindness">Paid with Kindness</option>
-      <option value="unpaid">Unpaid</option>
-      <option value="waived">Waived</option>
-    </select>
-
-    <div id="violationList">
-      <p class="empty-message">Choose a student to view records. 🐨</p>
-    </div>
-
-    <h3>Student Progress Timeline</h3>
-    <div id="studentTimeline" class="student-timeline">
-      <p class="empty-message">Choose a student to view timeline. 🐨</p>
-    </div>
-  </section>
-
-  <aside class="fee-panel" id="feePanel">
-    <div class="panel-header">
-      <h2>Kindness Guide</h2>
-      <button id="panelToggle">Hide</button>
-    </div>
-
-    <div id="panelContent">
-      <p class="guide-text">
-        Fees may be hidden in Serious Mode so the focus stays on behavior, reflection, and guidance.
-      </p>
-
-      <h3>Violation Fee List</h3>
-      <button type="button" id="manageFeesFromGuideBtn" class="summary-btn admin-only">
-        Manage Violation Fees
-      </button>
-      <div id="feeList"></div>
-    </div>
-  </aside>
-</main>
-
-<div class="modal hidden admin-only" id="manageFeesModal">
-  <div class="modal-card manage-fees-card">
-    <div class="modal-title-row">
-      <div>
-        <h2>Manage Violation Fees</h2>
-        <p class="modal-subtitle">Add one violation or import many at once.</p>
-      </div>
-      <button type="button" id="closeManageFeesModal" class="modal-x">×</button>
-    </div>
-
-    <form id="singleViolationTypeForm" class="add-form compact-form simplified-fees-form">
-      <label>
-        Violation Name
-        <input type="text" id="violationTypeNameInput" placeholder="Example: Tardiness" required />
-      </label>
-      <label>
-        Fee
-        <input type="number" id="violationTypeFeeInput" min="0" step="1" value="0" required />
-      </label>
-      <label>
-        Alert Threshold
-        <input type="number" id="violationTypeThresholdInput" min="1" step="1" value="3" />
-        <small class="field-hint">How many times before this violation triggers an alert.</small>
-      </label>
-      <label>
-        Kindness Alternative Payment
-        <input type="text" id="violationTypeKindnessInput" placeholder="Example: Assist classroom clean-up" />
-      </label>
-      <label>
-        Kindness Value
-        <input type="text" id="violationTypeKindnessValueInput" placeholder="Example: 1 task / 5 minutes" />
-      </label>
-
-      <details class="fee-advanced-fields category-only-advanced">
-        <summary>Optional category</summary>
-        <div class="fee-advanced-grid">
-          <label>
-            Category
-            <input type="text" id="violationTypeCategoryInput" placeholder="Optional: Punctuality / Uniform" />
-          </label>
-        </div>
-        <p class="guide-text small-guide">Category is only for grouping. Alert Threshold stays visible because it controls when alerts appear.</p>
-      </details>
-
-      <button type="submit">Save Violation Type</button>
-    </form>
-
-    <div class="bulk-import-box">
-      <h3>Bulk Add</h3>
-      <p class="guide-text">Simple format per line: Name | Fee | Alert Threshold | Kindness Alternative Payment | Kindness Value</p>
-      <textarea id="bulkViolationTypesInput" rows="7" placeholder="No ID | 10 | 3 | Reflection + arrange chairs | 1 task&#10;Tardiness | 20 | 3 | Magayos ng Chairs | 1 Day&#10;No Assignment | 5 | 2 | Reflection + help organize materials | 1 task"></textarea>
-      <p class="guide-text small-guide">Old formats still accepted: Name | Fee | Kindness Alternative Payment | Kindness Value, or Name | Fee | Category | Threshold | Kindness Alternative Payment | Kindness Value</p>
-      <button type="button" id="bulkSaveViolationTypesBtn">Import All</button>
-    </div>
-
-    <h3>Current List</h3>
-    <div id="manageFeesList" class="manage-fees-list"></div>
-  </div>
-</div>
-
-<div class="modal hidden" id="studentDetailsModal">
-  <div class="modal-card student-details-modal-card">
-    <div class="modal-title-row">
-      <div>
-        <h2 id="modalSelectedName">Student Details</h2>
-        <p class="modal-subtitle">Tap outside or close when done.</p>
-      </div>
-      <button type="button" id="closeStudentDetailsModal" class="modal-x">×</button>
-    </div>
-
-    <div id="modalStudentSummary"></div>
-
-    <h3>Violation History</h3>
-
-    <select id="modalViolationFilter">
-      <option value="all">All Violations</option>
-      <option value="paid">Paid</option>
-      <option value="paidwithkindness">Paid with Kindness</option>
-      <option value="unpaid">Unpaid</option>
-      <option value="waived">Waived</option>
-    </select>
-
-    <div id="modalViolationList">
-      <p class="empty-message">No records found.</p>
-    </div>
-
-    <h3>Student Progress Timeline</h3>
-    <div id="modalStudentTimeline" class="student-timeline">
-      <p class="empty-message">No timeline yet.</p>
-    </div>
-  </div>
-</div>
-
-<div class="modal hidden" id="editModal">
-  <div class="modal-card">
-    <h2>Edit Violation</h2>
-
-    <form id="editViolationForm">
-      <input type="hidden" id="editRecordId" />
-
-      <label>Violation Type</label>
-      <select id="editViolationType" required></select>
-
-      <label>Status</label>
-      <select id="editStatus" required>
-        <option value="Unpaid">Unpaid</option>
-        <option value="Paid">Paid</option>
-        <option value="Paid with Kindness">Paid with Kindness</option>
-        <option value="Waived">Waived</option>
-      </select>
-
-      <label>Settlement Type</label>
-      <select id="editSettlementType">
-        <option value="Cash">Cash</option>
-        <option value="Kindness Alternative">Kindness Alternative Payment</option>
-        <option value="Waived">Waived</option>
-      </select>
-
-      <label>Kindness Task</label>
-      <input type="text" id="editKindnessTask" placeholder="Kindness task optional..." />
-
-      <label>Kindness Status</label>
-      <select id="editKindnessStatus">
-        <option value="Pending">Pending</option>
-        <option value="Completed">Completed</option>
-      </select>
-
-      <label>Kindness Completed Date</label>
-      <input type="date" id="editKindnessCompletedDate" />
-
-      <label>Action Taken</label>
-      <select id="editActionTaken">
-        <option value="Verbal Reminder">Verbal Reminder</option>
-        <option value="Parent Notified">Parent Notified</option>
-        <option value="Reflection Given">Reflection Given</option>
-        <option value="Guidance Referral">Guidance Referral</option>
-        <option value="Paid / Settled">Paid / Settled</option>
-        <option value="Other">Other</option>
-      </select>
-
-      <label>Reflection / Commitment</label>
-      <textarea id="editReflection" placeholder="Student reflection or commitment optional..."></textarea>
-
-      <label>Follow-up Date</label>
-      <input type="date" id="editFollowUpDate" />
-
-      <label>Follow-up Status</label>
-      <select id="editFollowUpStatus">
-        <option value="Pending">Pending</option>
-        <option value="Improved">Improved</option>
-        <option value="Repeated">Repeated</option>
-        <option value="Resolved">Resolved</option>
-      </select>
-
-      <label>Parent Contacted</label>
-      <select id="editParentContacted">
-        <option value="No">No</option>
-        <option value="Yes">Yes</option>
-      </select>
-
-      <label>Date</label>
-      <input type="date" id="editDate" required />
-
-      <label>Notes</label>
-      <input type="text" id="editNotes" placeholder="Notes optional..." />
-
-      <div class="modal-actions">
-        <button type="button" id="closeEditModal">Cancel</button>
-        <button type="submit">Save Changes</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<div class="modal hidden" id="deleteModal">
-  <div class="modal-card">
-    <h2>Delete Violation?</h2>
-    <p class="guide-text">
-      This action will remove the violation record from the sheet.
-    </p>
-
-    <input type="hidden" id="deleteRecordId" />
-
-    <div class="modal-actions">
-      <button type="button" id="closeDeleteModal">Cancel</button>
-      <button type="button" id="confirmDeleteBtn">Delete</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal hidden" id="termSummaryModal">
-  <div class="modal-card summary-modal-card">
-    <div class="modal-title-row">
-      <div>
-        <h2>📊 Term Summary</h2>
-        <p id="termSummaryLabel" class="modal-subtitle">All Terms</p>
-      </div>
-      <button type="button" id="closeTermSummaryModal" class="modal-x">×</button>
-    </div>
-
-    <div id="termSummaryList" class="term-summary-list modal-summary-list">
-      <p class="empty-message">Loading term summary... 🐨</p>
-    </div>
-  </div>
-</div>
-
-<div class="modal hidden" id="attendanceStatusModal">
-  <div class="modal-card attendance-status-card">
-    <div class="modal-title-row">
-      <div>
-        <h2 id="attendanceStatusTitle">Attendance List</h2>
-        <p id="attendanceStatusSubtitle" class="modal-subtitle">Today</p>
-      </div>
-      <button type="button" id="closeAttendanceStatusModal" class="modal-x">×</button>
-    </div>
-
-    <div id="attendanceStatusList" class="attendance-status-list">
-      <p class="empty-message">No students found.</p>
-    </div>
-  </div>
-</div>
-
-<div class="modal hidden" id="printOptionsModal">
-  <div class="modal-card">
-    <h2>Print Student Record</h2>
-    <p class="guide-text">
-      Piliin kung anong details ang isasama sa printed record.
-    </p>
-
-    <div class="print-options">
-      <label>
-        <input type="checkbox" id="printIncludeFees" />
-        Include Fee Details
-      </label>
-
-      <label>
-        <input type="checkbox" id="printIncludeStatus" checked />
-        Include Status
-      </label>
-
-      <label>
-        <input type="checkbox" id="printIncludeAction" checked />
-        Include Action Taken
-      </label>
-
-      <label>
-        <input type="checkbox" id="printIncludeReflection" checked />
-        Include Reflection / Commitment
-      </label>
-
-      <label>
-        <input type="checkbox" id="printIncludeFollowUp" checked />
-        Include Follow-up Details
-      </label>
-
-      <label>
-        <input type="checkbox" id="printIncludeParent" checked />
-        Include Parent Contacted
-      </label>
-
-      <label>
-        <input type="checkbox" id="printIncludeNotes" checked />
-        Include Notes
-      </label>
-    </div>
-
-    <div class="modal-actions">
-      <button type="button" id="closePrintOptionsModal">Cancel</button>
-      <button type="button" id="confirmPrintBtn">Print</button>
-    </div>
-  </div>
-</div>
-
-
-<div class="modal hidden" id="printAllOptionsModal">
-  <div class="modal-card">
-    <h2>Print All Student Records</h2>
-    <p class="guide-text">
-      Piliin kung anong details ang isasama sa class record printout.
-    </p>
-
-    <div class="print-options">
-      <label>
-        <input type="checkbox" id="printAllIncludeNoViolations" checked />
-        Include students with no violations
-      </label>
-
-      <label>
-        <input type="checkbox" id="printAllIncludeFees" />
-        Include Fee Details
-      </label>
-
-      <label>
-        <input type="checkbox" id="printAllIncludeStatus" checked />
-        Include Status
-      </label>
-
-      <label>
-        <input type="checkbox" id="printAllIncludeAction" checked />
-        Include Action Taken
-      </label>
-
-      <label>
-        <input type="checkbox" id="printAllIncludeReflection" checked />
-        Include Reflection / Commitment
-      </label>
-
-      <label>
-        <input type="checkbox" id="printAllIncludeFollowUp" checked />
-        Include Follow-up Details
-      </label>
-
-      <label>
-        <input type="checkbox" id="printAllIncludeParent" checked />
-        Include Parent Contacted
-      </label>
-
-      <label>
-        <input type="checkbox" id="printAllIncludeNotes" checked />
-        Include Notes
-      </label>
-
-      <label>
-        <input type="checkbox" id="printAllPageBreak" checked />
-        Page break per student
-      </label>
-    </div>
-
-    <div class="modal-actions">
-      <button type="button" id="closePrintAllOptionsModal">Cancel</button>
-      <button type="button" id="confirmPrintAllBtn">Print All</button>
-    </div>
-  </div>
-</div>
-
-</div>
-
-<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js"></script>
-<script src="firebase-auth-gate.js"></script>
-</body>
-</html>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.manage-fees-card {
+  width: min(860px, 100%);
+}
+
+.compact-form {
+  grid-template-columns: 1.4fr .55fr .75fr 1.2fr .75fr;
+  align-items: end;
+}
+
+.compact-form .field-hint {
+  display: block;
+  margin-top: 4px;
+  color: #6b7280;
+  font-size: .72rem;
+  font-weight: 700;
+}
+
+.category-only-advanced {
+  grid-column: 1 / -1;
+}
+
+.bulk-import-box {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(17, 24, 39, 0.1);
+}
+
+.bulk-import-box textarea {
+  width: 100%;
+  min-height: 128px;
+  resize: vertical;
+  border: 1px solid #d1d5db;
+  border-radius: 14px;
+  padding: 12px;
+  font: inherit;
+}
+
+.manage-fees-list {
+  display: grid;
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.manage-fee-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fffdf5;
+}
+
+.manage-fee-item small {
+  display: block;
+  margin-top: 2px;
+  color: #6b7280;
+  font-size: .78rem;
+}
+
+.manage-fee-item b {
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .compact-form {
+    grid-template-columns: 1fr;
+  }
+
+  .manage-fees-list {
+    max-height: 180px;
+  }
+}
+
+:root {
+  --yellow: #ffd83d;
+  --yellow-soft: #fff1a8;
+  --black: #151515;
+  --white: #ffffff;
+  --cream: #fff9e8;
+  --gray: #666;
+  --green: #2f9e44;
+  --red: #d62828;
+  --orange: #f59f00;
+  --line: rgba(0,0,0,.08);
+  --shadow: 0 18px 45px rgba(0,0,0,.12);
+  --radius: 26px;
+}
+
+body {
+  min-height: 100vh;
+  font-family: Arial, Helvetica, sans-serif;
+  color: var(--black);
+  background:
+    radial-gradient(circle at top left, rgba(255,216,61,.55), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(255,216,61,.35), transparent 32%),
+    linear-gradient(135deg, #fffdf4, #fff4bd);
+  padding: 16px;
+}
+
+header {
+  min-height: 230px;
+  padding: 30px;
+  border-radius: 34px;
+  background:
+    radial-gradient(circle at top right, rgba(255,216,61,.25), transparent 35%),
+    linear-gradient(135deg, #151515, #2a2a2a);
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
+}
+
+header::after {
+  content: "#BeKind";
+  position: absolute;
+  right: 30px;
+  bottom: -8px;
+  font-size: clamp(3rem, 10vw, 8rem);
+  font-weight: 900;
+  color: rgba(255,216,61,.12);
+}
+
+.app-badge {
+  width: fit-content;
+  background: var(--yellow);
+  color: var(--black);
+  padding: 9px 16px;
+  border-radius: 999px;
+  font-weight: 900;
+  margin-bottom: 14px;
+  box-shadow: 0 10px 24px rgba(255,216,61,.25);
+}
+
+header h1 {
+  max-width: 850px;
+  font-size: clamp(2rem, 5vw, 4.3rem);
+  line-height: .95;
+  letter-spacing: -1.5px;
+  margin-bottom: 12px;
+}
+
+.tagline {
+  color: #f1f1f1;
+  font-size: 1rem;
+}
+
+.bekind {
+  margin-top: 10px;
+  color: var(--yellow);
+  font-size: 1.6rem;
+  font-weight: 900;
+}
+
+button,
+select {
+  border: 0;
+  outline: none;
+  font-family: inherit;
+}
+
+#feeToggle {
+  position: relative;
+  z-index: 2;
+  background: var(--yellow);
+  color: var(--black);
+  padding: 13px 18px;
+  border-radius: 999px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 12px 26px rgba(255,216,61,.28);
+}
+
+.dashboard {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 16px;
+  margin: 18px 0;
+}
+
+.dashboard div,
+.dashboard button {
+  background: rgba(255,255,255,.88);
+  backdrop-filter: blur(10px);
+  padding: 18px;
+  border-radius: 24px;
+  border: 1px solid var(--line);
+  box-shadow: 0 12px 28px rgba(0,0,0,.08);
+  font-weight: 800;
+}
+
+.dashboard b {
+  display: block;
+  margin-top: 8px;
+  font-size: 2rem;
+}
+
+.dashboard button {
+  text-align: left;
+  cursor: pointer;
+  color: var(--black);
+}
+
+.dashboard-kindness-tile {
+  border-left: 7px solid var(--orange) !important;
+  background: linear-gradient(135deg, #fff8dd, #fffaf0) !important;
+}
+
+.dashboard-kindness-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(0,0,0,.10);
+}
+
+.kindness-paid-info {
+  border-left: 7px solid var(--green);
+  background: linear-gradient(135deg, #f0fff4, #fffaf0) !important;
+}
+
+.status.paidwithkindness {
+  background: #e7fff1;
+  color: #0d6b39;
+  border-color: #9ee6bd;
+}
+
+
+main {
+  display: grid;
+  grid-template-columns: 310px 1fr 320px;
+  gap: 18px;
+  min-width: 0;
+}
+
+.student-panel-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.student-panel-top h2 {
+  margin-bottom: 4px;
+}
+
+.student-panel-hint {
+  display: none;
+  color: var(--gray);
+  font-size: .8rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.mobile-student-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 138px;
+  padding: 11px 14px;
+  border-radius: 999px;
+  background: var(--yellow);
+  color: var(--black);
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(255,216,61,.24);
+}
+
+.student-controls {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.student-panel,
+.details-panel,
+.fee-panel {
+  background: rgba(255,255,255,.9);
+  backdrop-filter: blur(12px);
+  padding: 20px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  min-width: 0;
+}
+
+.student-panel {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 32px);
+  overflow: hidden;
+}
+
+#studentList {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: calc(100dvh - 300px);
+  overflow-y: auto;
+  padding-right: 4px;
+  -webkit-overflow-scrolling: touch;
+}
+
+h2 {
+  font-size: 1.35rem;
+  margin-bottom: 12px;
+}
+
+h2::after {
+  content: "  #BeKind";
+  color: var(--orange);
+  font-size: .85rem;
+  font-weight: 900;
+}
+
+h3 {
+  margin: 18px 0 10px;
+}
+
+select {
+  width: 100%;
+  background: var(--cream);
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  font-weight: 800;
+  margin-bottom: 14px;
+  cursor: pointer;
+}
+
+.student-card {
+  padding: 11px 12px;
+  border-radius: 14px;
+  background: #fffaf0;
+  margin-bottom: 7px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: .2s ease;
+}
+
+.student-card:hover,
+.student-card.active {
+  transform: translateY(-1px);
+  border-color: var(--yellow);
+  background: linear-gradient(135deg, #fff7c7, #fffdf2);
+  box-shadow: 0 8px 18px rgba(0,0,0,.07);
+}
+
+.student-card strong {
+  display: block;
+  margin-bottom: 5px;
+  line-height: 1.12;
+  font-size: .95rem;
+}
+
+@media (min-width: 1051px) {
+  main {
+    align-items: start;
+  }
+
+  .student-panel,
+  .details-panel,
+  .fee-panel {
+    position: sticky;
+    top: 14px;
+    max-height: calc(100vh - 28px);
+    overflow: hidden;
+  }
+
+  .student-panel {
+    min-height: 0;
+  }
+
+  .student-controls {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #studentList {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+    padding-right: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .student-card {
+    padding: 9px 10px;
+    margin-bottom: 6px;
+    border-radius: 12px;
+  }
+
+  .student-card strong {
+    font-size: .88rem;
+    margin-bottom: 4px;
+  }
+
+  .student-card .student-status,
+  .student-card .badge {
+    padding: 4px 8px;
+    font-size: .72rem;
+  }
+
+  .details-panel,
+  .fee-panel {
+    overflow-y: auto;
+  }
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: .75rem;
+  font-weight: 900;
+}
+
+.badge.ok {
+  background: #e8f7e8;
+  color: var(--green);
+}
+
+.badge.warn {
+  background: #fff3c4;
+  color: #9a6a00;
+}
+
+.badge.danger {
+  background: #ffe0e0;
+  color: var(--red);
+}
+
+.summary-box {
+  background: linear-gradient(135deg, #fff1a8, #fffaf0);
+  padding: 18px;
+  border-radius: 22px;
+  border-left: 9px solid var(--yellow);
+  margin-bottom: 14px;
+}
+
+.summary-box p {
+  margin-bottom: 6px;
+}
+
+.summary-box::after {
+  content: "Corrections are guided with fairness, respect, and kindness. #BeKind";
+  display: block;
+  margin-top: 12px;
+  color: var(--gray);
+  font-size: .9rem;
+}
+
+.violation-item,
+.fee-item {
+  padding: 15px;
+  border-radius: 20px;
+  background: #fffaf0;
+  border: 1px solid var(--line);
+  margin-bottom: 10px;
+}
+
+.violation-item strong,
+.fee-item strong {
+  font-size: 1rem;
+}
+
+.violation-item small {
+  display: block;
+  margin-top: 4px;
+  color: var(--gray);
+}
+
+.fee-text {
+  margin-top: 6px;
+  font-weight: 900;
+}
+
+.fee-item-record {
+  cursor: pointer;
+  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+.fee-item-record:hover,
+.fee-item-record:focus-visible {
+  border-color: var(--yellow);
+  box-shadow: 0 6px 18px rgba(161, 98, 7, .12);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.status {
+  margin-top: 7px;
+  font-weight: 900;
+}
+
+.status.paid {
+  color: var(--green);
+}
+
+.status.unpaid {
+  color: var(--red);
+}
+
+.status.waived {
+  color: var(--gray);
+}
+
+.guide-text,
+.empty-message {
+  background: #fff4c9;
+  color: #5f4700;
+  padding: 14px;
+  border-radius: 18px;
+  line-height: 1.45;
+  margin-bottom: 12px;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.panel-header h2 {
+  margin-bottom: 0;
+}
+
+#panelToggle {
+  background: var(--yellow);
+  color: var(--black);
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.panel-collapsed #panelContent {
+  display: none;
+}
+
+.hide-fees .fee-info,
+.hide-fees .fee-text {
+  display: none;
+}
+
+@media (max-width: 1050px) {
+  main {
+    grid-template-columns: 1fr;
+    width: 100%;
+    overflow: visible;
+  }
+
+  .dashboard {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 650px) {
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  body {
+    padding: 8px;
+  }
+
+  header {
+    min-height: auto;
+    padding: 18px;
+    border-radius: 22px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  header::after {
+    right: 12px;
+    bottom: 6px;
+    font-size: 2.8rem;
+  }
+
+  .app-badge {
+    padding: 7px 12px;
+    font-size: .85rem;
+    margin-bottom: 10px;
+  }
+
+  header h1 {
+    font-size: 1.75rem;
+    line-height: 1.05;
+    letter-spacing: -.5px;
+    margin-bottom: 8px;
+  }
+
+  .tagline {
+    font-size: .9rem;
+  }
+
+  .bekind {
+    font-size: 1.15rem;
+    margin-top: 7px;
+  }
+
+  #feeToggle {
+    width: 100%;
+    padding: 11px 14px;
+    font-size: .9rem;
+  }
+
+  .dashboard {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin: 12px 0;
+  }
+
+  .dashboard div,
+  .dashboard button {
+    min-height: 105px;
+    padding: 14px;
+    border-radius: 18px;
+    font-size: .82rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .dashboard b {
+    font-size: 1.45rem;
+    margin-top: 8px;
+  }
+
+  main {
+    gap: 12px;
+  }
+
+  .student-panel,
+  .details-panel,
+  .fee-panel {
+    padding: 15px;
+    border-radius: 20px;
+  }
+
+  .student-panel-top {
+    align-items: center;
+    margin-bottom: 0;
+  }
+
+  .student-panel-top h2 {
+    margin-bottom: 2px;
+  }
+
+  .student-panel-hint {
+    display: block;
+  }
+
+  .mobile-student-toggle {
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+
+  .student-controls {
+    display: none;
+  }
+
+  .student-panel.students-open .student-controls {
+    display: flex;
+    flex-direction: column;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(0,0,0,.08);
+    max-height: calc(100dvh - 210px);
+    min-height: 280px;
+    overflow: hidden;
+  }
+
+  .student-panel.students-open #studentList {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+    padding-right: 3px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .student-panel.students-open .mobile-student-toggle {
+    background: var(--black);
+    color: var(--yellow);
+  }
+
+  .student-panel:not(.students-open) {
+    padding-bottom: 13px;
+  }
+
+  .details-panel {
+    display: none;
+  }
+
+  .student-details-modal-card {
+    width: 100%;
+    max-height: 92vh;
+    overflow-y: auto;
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  h2 {
+    font-size: 1.1rem;
+  }
+
+  h3 {
+    font-size: 1rem;
+  }
+
+  .student-card,
+  .violation-item,
+  .fee-item {
+    padding: 10px;
+    border-radius: 13px;
+  }
+
+  select {
+    padding: 10px 12px;
+    border-radius: 13px;
+    font-size: .9rem;
+  }
+
+  #panelToggle {
+    padding: 7px 12px;
+    font-size: .8rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .dashboard div {
+    min-height: 95px;
+    padding: 12px;
+    font-size: .78rem;
+  }
+
+  .dashboard b {
+    font-size: 1.3rem;
+  }
+}
+
+.student-status {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin: 6px 0;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: .8rem;
+  font-weight: 900;
+}
+
+.student-status.track {
+  background: #e8f7e8;
+  color: #2f9e44;
+}
+
+.student-status.guidance {
+  background: #fff3c4;
+  color: #9a6a00;
+}
+
+.student-status.support {
+  background: #ffe0e0;
+  color: #d62828;
+}
+
+/* =========================
+   STUDENT SEARCH
+========================= */
+
+#studentSearch {
+  width: 100%;
+  background: var(--cream);
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  font-weight: 800;
+  margin-bottom: 12px;
+  outline: none;
+  transition: .2s ease;
+}
+
+#studentSearch::placeholder {
+  color: #999;
+}
+
+#studentSearch:focus {
+  border-color: var(--yellow);
+  background: #fffdf5;
+  box-shadow: 0 0 0 4px rgba(255,216,61,.20);
+}
+
+/* Mobile */
+
+@media (max-width: 650px) {
+  #studentSearch {
+    padding: 10px 12px;
+    border-radius: 13px;
+    font-size: .9rem;
+  }
+}
+.alert-center {
+  background: rgba(255,255,255,.9);
+  backdrop-filter: blur(12px);
+  padding: 20px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  margin-bottom: 18px;
+}
+
+.alert-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.alert-header span {
+  color: var(--orange);
+  font-weight: 900;
+}
+
+.alert-card {
+  background: #fffaf0;
+  border: 1px solid var(--line);
+  border-left: 8px solid var(--yellow);
+  padding: 14px;
+  border-radius: 18px;
+  margin-top: 10px;
+  cursor: pointer;
+}
+
+.alert-card.support {
+  border-left-color: var(--red);
+}
+
+.alert-card.guidance {
+  border-left-color: var(--orange);
+}
+
+.alert-card strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.add-panel {
+  background: rgba(255,255,255,.9);
+  backdrop-filter: blur(12px);
+  padding: 20px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  margin-bottom: 18px;
+}
+
+.add-violation-card {
+  width: min(760px, 100%);
+}
+
+.add-form {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 14px;
+  align-items: center;
+}
+
+#addNotes {
+  grid-column: span 2;
+}
+
+.add-form button {
+  grid-column: 1 / -1;
+}
+
+.admin-shortcuts {
+  width: min(1480px, calc(100% - 32px));
+  margin: 0 auto 14px;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.admin-shortcuts button {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: var(--black);
+  color: white;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(0,0,0,.08);
+  min-height: 54px;
+  white-space: nowrap;
+}
+
+.admin-shortcuts button:first-child {
+  background: var(--yellow);
+  color: var(--black);
+}
+
+.advanced-fields {
+  grid-column: 1 / -1;
+  border: 1px dashed var(--line);
+  border-radius: 16px;
+  padding: 10px;
+  background: rgba(255,255,255,.55);
+}
+
+.advanced-fields summary {
+  cursor: pointer;
+  font-weight: 900;
+  color: var(--black);
+}
+
+.advanced-fields[open] {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.advanced-fields[open] summary {
+  grid-column: 1 / -1;
+}
+
+.add-form select,
+.add-form input,
+.add-form textarea {
+  width: 100%;
+  background: var(--cream);
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  font-weight: 800;
+  outline: none;
+}
+
+.add-form button {
+  background: var(--yellow);
+  color: var(--black);
+  padding: 12px 14px;
+  border-radius: 16px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.hidden {
+  display: none;
+}
+
+@media (max-width: 1050px) {
+  .admin-shortcuts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .add-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .advanced-fields[open] {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 650px) {
+  .admin-shortcuts {
+    width: min(100% - 20px, 1180px);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .admin-shortcuts button {
+    padding: 10px 8px;
+    border-radius: 12px;
+    font-size: 0.82rem;
+    min-height: 44px;
+  }
+
+  .add-form {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .advanced-fields,
+  .advanced-fields[open] {
+    grid-template-columns: 1fr;
+    padding: 9px;
+  }
+}
+
+.violation-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.violation-actions button {
+  background: var(--yellow);
+  color: var(--black);
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.violation-actions button:last-child {
+  background: #ffe0e0;
+  color: var(--red);
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  display: grid;
+  place-items: center;
+  z-index: 999;
+  padding: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-card {
+  width: min(540px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: white;
+  padding: 22px;
+  border-radius: 24px;
+  box-shadow: var(--shadow);
+}
+
+.modal-card h2 {
+  margin-bottom: 14px;
+}
+
+.modal-card label {
+  display: block;
+  margin: 12px 0 6px;
+  font-weight: 900;
+}
+
+.modal-card select,
+.modal-card input,
+.modal-card textarea {
+  width: 100%;
+  background: var(--cream);
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  font-weight: 800;
+  outline: none;
+}
+
+.modal-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  background: white;
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 12px;
+  padding-bottom: 2px;
+}
+
+.modal-actions button {
+  flex: 1;
+  padding: 12px 14px;
+  border-radius: 999px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.modal-actions button:first-child {
+  background: #eee;
+  color: var(--black);
+}
+
+.modal-actions button:last-child {
+  background: var(--yellow);
+  color: var(--black);
+}
+#toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: #151515;
+  color: white;
+  padding: 14px 18px;
+  border-radius: 14px;
+  font-weight: 800;
+  z-index: 9999;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: .25s;
+}
+
+#toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (max-width: 650px) {
+  #toast {
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    text-align: center;
+  }
+}
+.fee-breakdown {
+  margin-top: 10px;
+  background: rgba(255,255,255,.45);
+  padding: 10px;
+  border-radius: 14px;
+}
+
+.fee-breakdown p {
+  margin-bottom: 4px;
+}
+#addPanelToggle {
+  display: inline-flex;
+  background: var(--yellow);
+  color: var(--black);
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-weight: 900;
+  cursor: pointer;
+  border: 1px solid var(--line);
+}
+
+@media (max-width: 650px) {
+  #addPanelToggle {
+    padding: 8px 14px;
+  }
+}
+
+@media (max-width: 1050px) {
+  .add-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  #addNotes,
+  .add-form button {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 650px) {
+  .add-form {
+    grid-template-columns: 1fr;
+  }
+
+  #addNotes,
+  .add-form button {
+    grid-column: span 1;
+  }
+}
+.print-btn {
+  background: var(--black);
+  color: white;
+  padding: 12px 16px;
+  border-radius: 999px;
+  font-weight: 900;
+  cursor: pointer;
+  margin-bottom: 16px;
+}
+
+.print-options {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.print-options label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--cream);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 12px 14px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.print-options input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--yellow);
+}
+
+
+.print-all-btn {
+  width: 100%;
+  margin-bottom: 12px;
+  background: var(--yellow);
+  color: var(--black);
+}
+
+
+.term-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  background: rgba(255,255,255,.9);
+  backdrop-filter: blur(12px);
+  padding: 16px 18px;
+  border-radius: 24px;
+  border: 1px solid var(--line);
+  box-shadow: 0 12px 28px rgba(0,0,0,.08);
+  margin-bottom: 18px;
+}
+
+.term-panel strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.term-panel span {
+  color: #9a6a00;
+  font-weight: 900;
+}
+
+.term-panel select {
+  width: min(360px, 100%);
+  margin-bottom: 0;
+}
+
+@media (max-width: 650px) {
+  .term-panel {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 14px;
+    border-radius: 20px;
+    gap: 10px;
+  }
+
+  .term-panel select {
+    width: 100%;
+  }
+}
+
+
+.term-summary-panel {
+  background: rgba(255,255,255,.9);
+  backdrop-filter: blur(12px);
+  padding: 20px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  margin-bottom: 18px;
+}
+
+.term-summary-list {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.summary-stat-card {
+  background: #fffaf0;
+  border: 1px solid var(--line);
+  border-left: 7px solid var(--yellow);
+  border-radius: 20px;
+  padding: 14px;
+  min-height: 118px;
+}
+
+.summary-stat-card span {
+  display: block;
+  color: #5f4700;
+  font-weight: 900;
+  font-size: .85rem;
+  margin-bottom: 8px;
+}
+
+.summary-stat-card strong {
+  display: block;
+  font-size: 1.55rem;
+  line-height: 1.05;
+  margin-bottom: 6px;
+}
+
+.summary-stat-card small {
+  color: var(--gray);
+  font-weight: 800;
+}
+
+.summary-stat-card.wide {
+  grid-column: span 2;
+}
+
+.top-list-card ol {
+  margin-left: 20px;
+  margin-top: 8px;
+}
+
+.top-list-card li {
+  margin-bottom: 8px;
+}
+
+.top-list-card li strong {
+  font-size: .95rem;
+  margin-bottom: 2px;
+}
+
+.mini-fee-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.mini-fee-grid small {
+  background: rgba(255,255,255,.7);
+  border-radius: 12px;
+  padding: 8px;
+}
+
+@media (max-width: 1050px) {
+  .term-summary-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .summary-stat-card.wide {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 650px) {
+  .term-summary-panel {
+    padding: 15px;
+    border-radius: 20px;
+  }
+
+  .term-summary-list {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-stat-card,
+  .summary-stat-card.wide {
+    grid-column: span 1;
+  }
+
+  .summary-stat-card strong {
+    font-size: 1.35rem;
+  }
+}
+
+/* =========================
+   TERM SUMMARY MODAL UPDATE
+========================= */
+
+.summary-btn {
+  background: var(--black);
+  color: white;
+  padding: 12px 16px;
+  border-radius: 999px;
+  font-weight: 900;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.summary-modal-card {
+  width: min(980px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+}
+
+.modal-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.modal-subtitle {
+  color: #9a6a00;
+  font-weight: 900;
+  margin-top: -6px;
+}
+
+.modal-x {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  background: #eee;
+  color: var(--black);
+  font-size: 1.4rem;
+  font-weight: 900;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.modal-summary-list {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+@media (max-width: 900px) {
+  .modal-summary-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 650px) {
+  .summary-btn {
+    width: 100%;
+    padding: 11px 14px;
+  }
+
+  .summary-modal-card {
+    max-height: 88vh;
+  }
+
+  .modal-summary-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+.action-text {
+  margin-top: 6px;
+  font-weight: 800;
+  color: #5f4700;
+}
+
+
+/* =========================
+   GUIDANCE FOLLOW-UP UPDATE
+========================= */
+
+.guidance-line {
+  margin-top: 6px;
+  color: #5f4700;
+  font-weight: 800;
+}
+
+@media (max-width: 1050px) {
+  #addReflection,
+  #addNotes {
+    grid-column: span 1;
+  }
+}
+
+
+/* =========================
+   MODAL SCROLL FIX
+========================= */
+
+@media (max-width: 650px) {
+  .modal {
+    align-items: start;
+    padding: 10px;
+  }
+
+  .modal-card {
+    width: 100%;
+    max-height: 92vh;
+    padding: 18px;
+    border-radius: 20px;
+  }
+
+  .modal-actions {
+    margin-left: -18px;
+    margin-right: -18px;
+    padding-left: 18px;
+    padding-right: 18px;
+    padding-bottom: 8px;
+  }
+}
+
+
+/* =========================
+   SAFE ACCESS GATE + VIEW ONLY
+========================= */
+
+.app-root.hidden,
+.access-screen.hidden {
+  display: none;
+}
+
+.access-screen {
+  min-height: calc(100vh - 32px);
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+
+.access-card {
+  width: min(460px, 100%);
+  background: rgba(255,255,255,.94);
+  border: 1px solid var(--line);
+  border-radius: 30px;
+  box-shadow: var(--shadow);
+  padding: 28px;
+  text-align: center;
+}
+
+.access-logo {
+  width: 68px;
+  height: 68px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  background: var(--yellow);
+  font-size: 2rem;
+  box-shadow: 0 12px 26px rgba(255,216,61,.28);
+}
+
+.access-card h1 {
+  font-size: 2rem;
+  margin-bottom: 8px;
+}
+
+.access-card p {
+  color: var(--gray);
+  line-height: 1.45;
+}
+
+.access-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 20px 0 12px;
+}
+
+.access-actions button,
+.admin-login button,
+#logoutAccessBtn {
+  background: var(--yellow);
+  color: var(--black);
+  padding: 12px 14px;
+  border-radius: 999px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.access-actions button:first-child {
+  background: var(--black);
+  color: white;
+}
+
+.admin-login {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.admin-login.hidden {
+  display: none;
+}
+
+.admin-login input {
+  width: 100%;
+  background: var(--cream);
+  padding: 13px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  font-weight: 800;
+  outline: none;
+}
+
+.access-message {
+  min-height: 20px;
+  margin-top: 10px;
+  color: var(--red);
+  font-weight: 900;
+}
+
+.mode-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  background: rgba(255,255,255,.9);
+  backdrop-filter: blur(12px);
+  padding: 14px 18px;
+  border-radius: 22px;
+  border: 1px solid var(--line);
+  box-shadow: 0 12px 28px rgba(0,0,0,.08);
+  margin: 18px 0;
+}
+
+.mode-bar strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.mode-bar span {
+  color: var(--gray);
+  font-size: .9rem;
+  font-weight: 800;
+}
+
+.viewer-fee-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(0,0,0,.1);
+  border-radius: 999px;
+  background: #fff7c7;
+  color: #2f2a0b;
+  font-size: .86rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.viewer-fee-control input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.view-only-mode .admin-only,
+.view-only-mode .violation-actions {
+  display: none !important;
+}
+
+.view-only-mode #feeToggle {
+  display: none;
+}
+
+.hide-fees .fee-panel {
+  display: none;
+}
+
+.view-only-mode .details-panel {
+  min-height: 320px;
+}
+
+@media (max-width: 650px) {
+  body {
+    padding: 8px;
+  }
+
+  .access-screen {
+    min-height: calc(100vh - 16px);
+    padding: 8px;
+  }
+
+  .access-card {
+    padding: 22px;
+    border-radius: 24px;
+  }
+
+  .access-card h1 {
+    font-size: 1.6rem;
+  }
+
+  .access-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .mode-bar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 14px;
+    border-radius: 18px;
+    margin: 12px 0;
+  }
+
+  .viewer-fee-control {
+    width: 100%;
+    justify-content: flex-start;
+    border-radius: 14px;
+    padding: 10px;
+  }
+
+  #logoutAccessBtn {
+    width: 100%;
+  }
+
+  .term-panel {
+    gap: 10px;
+  }
+
+  .print-btn,
+  #feeToggle,
+  .summary-btn {
+    width: 100%;
+  }
+
+  .violation-actions {
+    flex-wrap: wrap;
+  }
+
+  .modal-card {
+    max-height: 92vh;
+  }
+}
+
+
+
+/* =========================
+   CLICKABLE SUMMARY STUDENTS
+========================= */
+
+.summary-student-link {
+  width: 100%;
+  display: block;
+  text-align: left;
+  background: rgba(255,255,255,.72);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: .18s ease;
+}
+
+.summary-student-link:hover {
+  transform: translateY(-2px);
+  border-color: var(--yellow);
+  background: #fff7c7;
+  box-shadow: 0 8px 18px rgba(0,0,0,.08);
+}
+
+.summary-student-link strong {
+  display: block;
+  font-size: .95rem;
+  margin-bottom: 3px;
+}
+
+.summary-student-link small {
+  display: block;
+}
+
+@media (max-width: 650px) {
+  .summary-student-link {
+    padding: 11px 12px;
+  }
+}
+
+/* =========================
+   DAILY ATTENDANCE
+========================= */
+
+.attendance-summary-panel,
+.attendance-panel {
+  width: min(1180px, calc(100% - 32px));
+  margin: 18px auto;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  border-radius: 22px;
+  box-shadow: var(--shadow);
+}
+
+.attendance-summary-panel {
+  padding: 18px 22px;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.96), rgba(255,250,232,.94));
+}
+
+.attendance-summary-panel .attendance-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.attendance-summary-panel .summary-btn {
+  background: var(--yellow);
+  color: var(--black);
+  border: 1px solid rgba(0,0,0,.12);
+  border-radius: 999px;
+  padding: 11px 18px;
+  box-shadow: 0 10px 22px rgba(255,216,61,.22);
+}
+
+#attendanceQuickSummary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0 0;
+}
+
+#attendanceQuickSummary .attendance-snapshot {
+  grid-column: 1 / -1;
+  margin: 0 0 2px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #fff7c7;
+  color: #2f2a0b;
+  font-size: .88rem;
+  font-weight: 800;
+}
+
+#attendanceQuickSummary .attendance-stat-card {
+  min-height: 72px;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  padding: 12px 14px;
+  color: #111827;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: none;
+  transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+
+#attendanceQuickSummary .attendance-stat-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(0,0,0,.08);
+}
+
+#attendanceQuickSummary .attendance-stat-card span {
+  display: block;
+  font-size: .76rem;
+  font-weight: 900;
+  letter-spacing: .01em;
+  opacity: .72;
+}
+
+#attendanceQuickSummary .attendance-stat-card strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+#attendanceQuickSummary .attendance-stat-card.present {
+  background: #e9fbe9;
+  border-color: #bce9c0;
+  color: #137333;
+}
+
+#attendanceQuickSummary .attendance-stat-card.absent {
+  background: #ffe8e8;
+  border-color: #ffc4c4;
+  color: #b42318;
+}
+
+#attendanceQuickSummary .attendance-stat-card.excused {
+  background: #eaf2ff;
+  border-color: #c7dcff;
+  color: #1d4ed8;
+}
+
+#attendanceQuickSummary .attendance-stat-card.tardy {
+  background: #fff4d6;
+  border-color: #ffdf8a;
+  color: #92400e;
+}
+
+#attendanceQuickSummary .attendance-stat-card.total {
+  background: #f4f4f5;
+  border-color: #dedee3;
+  color: #27272a;
+}
+
+.attendance-modal-card {
+  width: min(980px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.status-code {
+  display: none;
+}
+
+.attendance-header,
+.attendance-board-header,
+.attendance-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.attendance-header h2 {
+  margin: 0;
+}
+
+.attendance-header p,
+.attendance-board-header span {
+  display: block;
+  color: #6b7280;
+  margin-top: 4px;
+  font-size: 0.9rem;
+}
+
+.attendance-date-line {
+  color: #374151;
+  font-size: .9rem;
+  font-weight: 800;
+}
+
+.attendance-toolbar {
+  display: grid;
+  grid-template-columns: 170px;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.attendance-extra-toolbar {
+  grid-template-columns: minmax(180px, 1fr) 170px 170px;
+}
+
+.attendance-mobile-tools {
+  margin-top: 10px;
+}
+
+.attendance-mobile-tools summary {
+  cursor: pointer;
+  font-weight: 900;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f9fafb;
+}
+
+.attendance-toolbar label {
+  display: grid;
+  gap: 6px;
+  color: #4b5563;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.attendance-toolbar input,
+.attendance-toolbar select,
+.monthly-attendance input {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 14px;
+  padding: 11px 12px;
+  font: inherit;
+  background: white;
+}
+
+.attendance-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.attendance-summary button {
+  background: #111827;
+  color: white;
+  border: 0;
+  border-radius: 14px;
+  padding: 11px 12px;
+  font-weight: 900;
+  text-align: center;
+  cursor: pointer;
+}
+
+.attendance-summary button:hover {
+  transform: translateY(-1px);
+  background: #27272a;
+}
+
+#attendanceSummary {
+  align-items: stretch;
+}
+
+#attendanceSummary .attendance-count-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 42px;
+  padding: 9px 11px;
+  border: 1px solid transparent;
+  border-radius: 13px;
+  color: #111827;
+  background: #f4f4f5;
+  text-align: left;
+}
+
+#attendanceSummary .attendance-count-chip:hover {
+  background: #f4f4f5;
+  box-shadow: 0 8px 18px rgba(0,0,0,.07);
+}
+
+#attendanceSummary .attendance-count-chip span {
+  font-size: .78rem;
+  font-weight: 900;
+}
+
+#attendanceSummary .attendance-count-chip strong {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+#attendanceSummary .attendance-count-chip.present {
+  background: #e9fbe9;
+  border-color: #bce9c0;
+  color: #137333;
+}
+
+#attendanceSummary .attendance-count-chip.absent {
+  background: #ffe8e8;
+  border-color: #ffc4c4;
+  color: #b42318;
+}
+
+#attendanceSummary .attendance-count-chip.excused {
+  background: #eaf2ff;
+  border-color: #c7dcff;
+  color: #1d4ed8;
+}
+
+#attendanceSummary .attendance-count-chip.tardy {
+  background: #fff4d6;
+  border-color: #ffdf8a;
+  color: #92400e;
+}
+
+#attendanceSummary .attendance-count-chip.total {
+  background: #f4f4f5;
+  border-color: #dedee3;
+  color: #27272a;
+}
+
+.attendance-status-card {
+  width: min(520px, 100%);
+}
+
+.attendance-status-list {
+  display: grid;
+  gap: 8px;
+}
+
+.attendance-status-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f9fafb;
+}
+
+.attendance-status-item span {
+  flex: 0 0 auto;
+  font-size: 0.82rem;
+  font-weight: 900;
+  color: #4b5563;
+}
+
+.attendance-board,
+.attendance-list-shell,
+.monthly-attendance {
+  border-top: 1px solid rgba(17, 24, 39, 0.08);
+  padding-top: 14px;
+  margin-top: 14px;
+}
+
+.viewer-attendance-note {
+  display: none;
+  margin: 0 0 8px;
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+.view-only-mode .viewer-attendance-note {
+  display: block;
+}
+
+.admin-attendance-note {
+  margin: 0 0 8px;
+  padding: 9px 11px;
+  border-radius: 12px;
+  background: #fff7c2;
+  color: #3f3f12;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.attendance-mark-mode {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: grid;
+  grid-template-columns: auto repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  align-items: center;
+  margin: 0 0 10px;
+  padding: 8px;
+  border-radius: 14px;
+  background: white;
+  border: 1px solid #e5e7eb;
+}
+
+.attendance-mark-mode span {
+  font-size: 0.78rem;
+  font-weight: 900;
+  color: #4b5563;
+}
+
+.attendance-mark-mode button {
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  background: #f9fafb;
+  padding: 9px 8px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.attendance-mark-mode button.active[data-attendance-mode="Absent"] {
+  background: #ef4444;
+  color: white;
+  border-color: #ef4444;
+}
+
+.attendance-mark-mode button.active[data-attendance-mode="Tardy"] {
+  background: #facc15;
+  color: #111827;
+  border-color: #facc15;
+}
+
+.attendance-mark-mode button.active[data-attendance-mode="Excused"] {
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+.attendance-mark-mode button.active[data-attendance-mode="Present"] {
+  background: #22c55e;
+  color: white;
+  border-color: #22c55e;
+}
+
+.show-all-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: fit-content;
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  background: #f9fafb;
+  font-size: .88rem;
+  font-weight: 900;
+  color: #1f2937;
+  white-space: nowrap;
+}
+
+.show-all-toggle input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.attendance-board-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.attendance-group {
+  border: 1px solid #e6e8ee;
+  border-radius: 14px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.attendance-group h3 {
+  margin: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 11px;
+  background: #f9fafb;
+  font-size: .95rem;
+  line-height: 1.1;
+}
+
+.attendance-group.absent h3 {
+  background: #fee2e2;
+}
+
+.attendance-group.tardy h3 {
+  background: #fef3c7;
+}
+
+.attendance-group.excused h3 {
+  background: #dbeafe;
+}
+
+.attendance-group.present h3 {
+  background: #dcfce7;
+}
+
+.attendance-group ul {
+  list-style: none;
+  margin: 0;
+  padding: 7px 11px 10px;
+}
+
+.attendance-group li {
+  display: grid;
+  gap: 3px;
+  padding: 7px 0;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: .88rem;
+}
+
+.attendance-group li:last-child {
+  border-bottom: 0;
+}
+
+.attendance-group small {
+  color: #6b7280;
+}
+
+.attendance-inline-tag {
+  display: inline-flex;
+  width: fit-content;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.attendance-inline-tag.tardy {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #f59e0b;
+}
+
+.attendance-list-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.attendance-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.attendance-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(300px, 1.2fr) minmax(180px, 0.8fr);
+  gap: 8px;
+  align-items: center;
+  padding: 9px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: white;
+}
+
+.attendance-row.status-present {
+  border-color: #bbf7d0;
+  background: #f7fee7;
+}
+
+.attendance-row.status-absent {
+  border-color: #fecaca;
+  background: #fff1f2;
+}
+
+.attendance-row.status-excused {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+.attendance-row.status-tardy {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.attendance-tap-target {
+  width: 100%;
+  grid-column: span 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: #111827;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+
+.attendance-tap-target span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.attendance-tap-target strong {
+  line-height: 1.15;
+}
+
+.attendance-tap-target small {
+  color: #6b7280;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.attendance-tap-target b {
+  flex: 0 0 auto;
+  min-width: 84px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  text-align: center;
+  font-size: 0.8rem;
+  background: white;
+  border: 1px solid #e5e7eb;
+}
+
+.status-present .attendance-tap-target b {
+  background: #22c55e;
+  color: white;
+}
+
+.status-absent .attendance-tap-target b {
+  background: #ef4444;
+  color: white;
+}
+
+.status-excused .attendance-tap-target b {
+  background: #3b82f6;
+  color: white;
+}
+
+.status-tardy .attendance-tap-target b {
+  background: #facc15;
+  color: #111827;
+}
+
+.attendance-remarks {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font: inherit;
+}
+
+.attendance-row.status-present .attendance-remarks {
+  display: none;
+}
+
+.attendance-row.status-present .attendance-tap-target {
+  grid-column: 1 / -1;
+}
+
+.view-only-mode .attendance-list-shell,
+.view-only-mode .monthly-attendance,
+.view-only-mode .attendance-extra-toolbar {
+  display: none;
+}
+
+.view-only-mode .attendance-toolbar {
+  grid-template-columns: minmax(170px, 260px);
+}
+
+.monthly-attendance-list {
+  margin-top: 12px;
+  overflow-x: auto;
+}
+
+.monthly-attendance-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.monthly-attendance-actions input {
+  min-width: 170px;
+}
+
+.monthly-attendance summary {
+  cursor: pointer;
+  font-weight: 900;
+  color: #111827;
+}
+
+.monthly-attendance-list table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 650px;
+}
+
+.monthly-attendance-list th,
+.monthly-attendance-list td {
+  padding: 10px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.monthly-attendance-list th {
+  background: #111827;
+  color: white;
+}
+
+@media (max-width: 1050px) {
+  .attendance-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .attendance-board-list {
+    grid-template-columns: 1fr;
+  }
+
+  .attendance-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 650px) {
+  .attendance-modal-card {
+    width: 100%;
+    max-height: 96vh;
+    padding: 10px;
+    border-radius: 16px;
+  }
+
+  .attendance-summary-panel,
+  .attendance-panel {
+    width: min(100% - 20px, 1180px);
+    padding: 12px;
+    border-radius: 18px;
+  }
+
+  .attendance-header,
+  .attendance-board-header,
+  .attendance-list-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .attendance-header {
+    gap: 6px;
+  }
+
+  .attendance-header .attendance-list-actions {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .attendance-header .summary-btn {
+    width: auto;
+    flex: 1 1 auto;
+    padding: 9px 12px;
+  }
+
+  .attendance-header .modal-x {
+    flex: 0 0 auto;
+    width: 42px;
+    height: 42px;
+  }
+
+  .attendance-header h2 {
+    font-size: 1.05rem;
+    margin-bottom: 0;
+  }
+
+  .attendance-header > div > p {
+    display: none;
+  }
+
+  .attendance-summary-panel .attendance-date-line {
+    display: block;
+    margin-top: 3px;
+    font-size: .8rem;
+  }
+
+  .attendance-summary-panel .attendance-helper-copy {
+    display: none;
+  }
+
+  .attendance-header p,
+  .attendance-board-header span {
+    font-size: 0.78rem;
+  }
+
+  .attendance-toolbar,
+  .attendance-summary-panel .attendance-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .attendance-toolbar {
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .attendance-toolbar label {
+    gap: 4px;
+    font-size: 0.74rem;
+  }
+
+  .attendance-toolbar input,
+  .attendance-toolbar select,
+  .monthly-attendance input {
+    padding: 8px 10px;
+    border-radius: 10px;
+    font-size: 0.84rem;
+  }
+
+  .attendance-mobile-tools {
+    margin-top: 10px;
+  }
+
+  .attendance-mobile-tools summary {
+    padding: 8px 10px;
+    border-radius: 10px;
+    font-size: .82rem;
+    text-align: center;
+  }
+
+  .attendance-summary {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 5px;
+    margin: 10px 0;
+  }
+
+  .attendance-summary button {
+    padding: 7px 4px;
+    border-radius: 9px;
+    font-size: 0.66rem;
+    line-height: 1.15;
+  }
+
+  #attendanceSummary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  #attendanceSummary .attendance-count-chip {
+    min-height: 40px;
+    padding: 8px 9px;
+    border-radius: 11px;
+  }
+
+  #attendanceSummary .attendance-count-chip span {
+    font-size: .68rem;
+  }
+
+  #attendanceSummary .attendance-count-chip strong {
+    font-size: .95rem;
+  }
+
+  #attendanceSummary .attendance-count-chip.total {
+    grid-column: 1 / -1;
+  }
+
+  .attendance-summary-panel .attendance-header {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .attendance-summary-panel .summary-btn {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: var(--yellow);
+    color: var(--black);
+  }
+
+  #attendanceQuickSummary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  #attendanceQuickSummary .attendance-snapshot {
+    padding: 9px 10px;
+    border-radius: 12px;
+    font-size: .78rem;
+  }
+
+  #attendanceQuickSummary .attendance-stat-card {
+    min-height: 62px;
+    padding: 10px;
+    border-radius: 13px;
+  }
+
+  #attendanceQuickSummary .attendance-stat-card span {
+    font-size: .68rem;
+  }
+
+  #attendanceQuickSummary .attendance-stat-card strong {
+    font-size: 1.25rem;
+  }
+
+  #attendanceQuickSummary .attendance-stat-card.total {
+    grid-column: 1 / -1;
+    min-height: 54px;
+  }
+
+  .attendance-board,
+  .attendance-list-shell,
+  .monthly-attendance {
+    padding-top: 8px;
+    margin-top: 8px;
+  }
+
+  .attendance-board .attendance-board-header {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    align-items: start;
+  }
+
+  .attendance-board .attendance-board-header > div {
+    display: grid;
+    gap: 1px;
+  }
+
+  .show-all-toggle {
+    width: fit-content;
+    justify-content: flex-start;
+    padding: 8px 10px;
+    border-radius: 12px;
+    font-size: .86rem;
+  }
+
+  .admin-attendance-note {
+    display: none;
+  }
+
+  .attendance-board-list {
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .attendance-group {
+    border-radius: 12px;
+  }
+
+  .attendance-group h3 {
+    padding: 8px 10px;
+    font-size: 0.88rem;
+  }
+
+  .attendance-group ul {
+    padding: 4px 10px 8px;
+  }
+
+  .attendance-group li {
+    padding: 6px 0;
+    font-size: 0.82rem;
+  }
+
+  .attendance-list-header {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .attendance-list-header strong {
+    font-size: .95rem;
+  }
+
+  .attendance-list-actions {
+    display: flex;
+    flex: 0 0 auto;
+    justify-content: flex-end;
+  }
+
+  #printAttendanceBtn {
+    display: none;
+  }
+
+  #saveAttendanceBtn {
+    width: auto;
+    min-width: 82px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    margin-bottom: 0;
+    font-size: 0.78rem;
+    box-shadow: none;
+  }
+
+  .monthly-attendance-actions,
+  .monthly-attendance-actions input,
+  .monthly-attendance-actions button {
+    width: 100%;
+  }
+
+  .attendance-list {
+    gap: 5px;
+    margin-top: 6px;
+    max-height: 52vh;
+    overflow-y: auto;
+    padding-right: 2px;
+  }
+
+  .attendance-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding: 7px 8px;
+    border-radius: 11px;
+  }
+
+  .attendance-tap-target {
+    grid-column: auto;
+  }
+
+  .attendance-tap-target strong {
+    font-size: 0.82rem;
+    line-height: 1.15;
+  }
+
+  .attendance-tap-target small {
+    display: none;
+  }
+
+  .attendance-tap-target b {
+    min-width: 68px;
+    padding: 7px 8px;
+    font-size: 0.72rem;
+  }
+
+  .attendance-remarks {
+    padding: 7px 9px;
+    border-radius: 9px;
+    font-size: 0.8rem;
+  }
+
+  .attendance-mark-mode {
+    position: sticky;
+    top: 0;
+    z-index: 8;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    padding: 6px;
+    margin-top: 8px;
+    margin-bottom: 6px;
+  }
+
+  .attendance-mark-mode span {
+    grid-column: 1 / -1;
+  }
+
+  .attendance-mark-mode button {
+    padding: 8px 6px;
+    font-size: 0.78rem;
+  }
+}
+
+/* =========================
+   KINDNESS ALTERNATIVE / SETTLEMENT
+========================= */
+.kindness-line {
+  display: block;
+  margin-top: 5px;
+  color: #5f4700;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.manage-fees-card .compact-form label:nth-last-of-type(1),
+.manage-fees-card .compact-form label:nth-last-of-type(2) {
+  grid-column: span 2;
+}
+
+@media (max-width: 650px) {
+  .manage-fees-card .compact-form label:nth-last-of-type(1),
+  .manage-fees-card .compact-form label:nth-last-of-type(2) {
+    grid-column: span 1;
+  }
+}
+
+/* =========================
+   SUMMARY RANKED STUDENT LIST
+========================= */
+.ranked-list-note {
+  display: block;
+  margin-top: 4px;
+  color: var(--gray);
+  font-weight: 800;
+}
+
+.top-list-card .ranked-student-list {
+  max-height: min(430px, 58vh);
+  overflow-y: auto;
+  padding-right: 6px;
+  scroll-behavior: smooth;
+}
+
+.rank-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  margin-right: 6px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--yellow);
+  color: var(--black);
+  font-size: .78rem;
+  font-weight: 900;
+}
+
+@media (max-width: 650px) {
+  .top-list-card .ranked-student-list {
+    max-height: 360px;
+  }
+
+  .rank-number {
+    min-width: 34px;
+    padding: 2px 6px;
+    font-size: .72rem;
+  }
+}
+
+/* =========================
+   ACTION TRACKER + KINDNESS BOARD
+========================= */
+.action-tracker-panel {
+  background: rgba(255,255,255,.92);
+  backdrop-filter: blur(12px);
+  padding: 20px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  margin-bottom: 18px;
+}
+
+.action-tracker-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.action-tracker-header h2 {
+  margin-bottom: 4px;
+}
+
+.action-tracker-header p,
+.action-list-title small {
+  color: var(--gray);
+  font-weight: 700;
+}
+
+.action-tracker-header > span {
+  color: var(--orange);
+  font-weight: 900;
+}
+
+.action-tracker-summary {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.action-tracker-summary button {
+  background: #fffaf0;
+  border: 1px solid var(--line);
+  color: var(--black);
+  border-radius: 18px;
+  padding: 12px 10px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.action-tracker-summary button.active,
+.action-tracker-summary button:hover {
+  background: var(--black);
+  color: white;
+}
+
+.action-tracker-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(300px, .8fr);
+  gap: 14px;
+}
+
+.action-list-card,
+.kindness-board-card {
+  background: #fffaf0;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 14px;
+}
+
+.action-list-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.pending-action-list,
+.kindness-board-list {
+  display: grid;
+  gap: 8px;
+  max-height: 310px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.pending-action-item,
+.kindness-board-item {
+  width: 100%;
+  text-align: left;
+  background: white;
+  border: 1px solid var(--line);
+  border-left: 7px solid var(--yellow);
+  border-radius: 16px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.pending-action-item.followup { border-left-color: var(--orange); }
+.pending-action-item.kindness { border-left-color: #8a6d00; }
+.pending-action-item.unpaid { border-left-color: var(--red); }
+.pending-action-item.parent { border-left-color: #7c3aed; }
+
+.pending-action-item span,
+.pending-action-item strong,
+.pending-action-item small,
+.kindness-board-item strong,
+.kindness-board-item small,
+.kindness-board-item em {
+  display: block;
+}
+
+.pending-action-item span {
+  color: #9a6a00;
+  font-size: .76rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  margin-bottom: 3px;
+}
+
+.pending-action-item strong,
+.kindness-board-item strong {
+  font-size: .95rem;
+  margin-bottom: 3px;
+}
+
+.pending-action-item small,
+.kindness-board-item small,
+.kindness-board-item em {
+  color: var(--gray);
+  font-style: normal;
+  font-weight: 700;
+  font-size: .82rem;
+}
+
+.kindness-board-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.kindness-board-summary span {
+  background: #fff4c9;
+  border-radius: 14px;
+  padding: 10px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.kindness-board-item.pending { border-left-color: var(--orange); }
+.kindness-board-item.completed { border-left-color: var(--green); opacity: .9; }
+
+/* =========================
+   STUDENT PROGRESS TIMELINE
+========================= */
+.student-timeline {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.timeline-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  gap: 9px;
+  background: #fffaf0;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 11px;
+}
+
+.timeline-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--yellow);
+  margin-top: 4px;
+  box-shadow: 0 0 0 4px rgba(255,216,61,.22);
+}
+
+.timeline-item.pending-kindness .timeline-dot { background: var(--orange); }
+.timeline-item.overdue .timeline-dot { background: var(--red); }
+
+.timeline-content strong,
+.timeline-content small,
+.timeline-content p {
+  display: block;
+}
+
+.timeline-content small {
+  color: var(--gray);
+  font-weight: 800;
+  margin: 2px 0 6px;
+}
+
+.timeline-content p {
+  font-size: .86rem;
+  margin-top: 5px;
+  color: #4f3b00;
+}
+
+.timeline-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.timeline-chips span {
+  background: #fff4c9;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-weight: 900;
+  font-size: .72rem;
+}
+
+@media (max-width: 900px) {
+  .action-tracker-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .action-tracker-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 650px) {
+  .action-tracker-panel {
+    padding: 14px;
+    border-radius: 20px;
+  }
+
+  .action-tracker-header,
+  .action-list-title {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .action-tracker-summary {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .pending-action-list,
+  .kindness-board-list {
+    max-height: none;
+  }
+}
+
+/* =========================
+   MODAL CENTER + ACTION BOARD FIX
+========================= */
+.modal {
+  align-items: center;
+  justify-items: center;
+  overflow: hidden;
+  padding: 18px;
+}
+
+.modal-card {
+  max-height: calc(100dvh - 36px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-behavior: auto;
+}
+
+#editModal .modal-card,
+.add-violation-card,
+.manage-fees-card {
+  width: min(680px, 100%);
+}
+
+#editModal .modal-actions,
+.add-violation-card .modal-actions,
+.manage-fees-card .modal-actions {
+  box-shadow: 0 -12px 22px rgba(255,255,255,.92);
+}
+
+.action-tracker-launch-panel {
+  background: rgba(255,255,255,.92);
+  backdrop-filter: blur(12px);
+  padding: 18px;
+  border-radius: 24px;
+  border: 1px solid var(--line);
+  box-shadow: 0 12px 28px rgba(0,0,0,.08);
+  margin-bottom: 18px;
+}
+
+.action-tracker-launch-panel .action-tracker-header {
+  margin-bottom: 0;
+}
+
+.action-tracker-launch-panel .summary-btn {
+  min-width: 220px;
+  background: var(--black);
+  color: white;
+}
+
+.action-tracker-modal-card {
+  width: min(1040px, 100%);
+}
+
+.action-tracker-modal-card .action-tracker-layout {
+  max-height: min(62vh, 560px);
+}
+
+.action-tracker-modal-card .pending-action-list,
+.action-tracker-modal-card .kindness-board-list {
+  max-height: min(52vh, 440px);
+}
+
+@media (max-width: 750px) {
+  .modal {
+    padding: 10px;
+  }
+
+  .modal-card {
+    border-radius: 18px;
+    padding: 14px;
+    max-height: calc(100dvh - 20px);
+  }
+
+  #editModal .modal-card,
+  .add-violation-card,
+  .manage-fees-card,
+  .action-tracker-modal-card {
+    width: 100%;
+  }
+
+  .action-tracker-launch-panel {
+    padding: 14px;
+    border-radius: 20px;
+  }
+
+  .action-tracker-launch-panel .action-tracker-header {
+    display: grid;
+    gap: 12px;
+  }
+
+  .action-tracker-launch-panel .summary-btn {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .action-tracker-modal-card .action-tracker-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .action-tracker-modal-card .action-tracker-layout {
+    grid-template-columns: 1fr;
+    max-height: none;
+  }
+
+  .action-tracker-modal-card .pending-action-list,
+  .action-tracker-modal-card .kindness-board-list {
+    max-height: 260px;
+  }
+}
+
+@media (max-height: 640px) {
+  .modal {
+    align-items: start;
+  }
+}
+
+/* =========================
+   ADD VIOLATION OPTIONAL DETAILS FIX
+========================= */
+.add-violation-card {
+  width: min(860px, 100%);
+}
+
+.bulk-student-picker {
+  grid-column: 1 / -1;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #fffdf5;
+  padding: 14px;
+}
+
+.bulk-student-picker-head,
+.bulk-picker-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.bulk-student-picker-head small {
+  display: block;
+  margin-top: 3px;
+  color: var(--gray);
+  font-weight: 800;
+}
+
+.add-form .bulk-picker-link,
+.add-form .bulk-picker-actions button {
+  grid-column: auto;
+  width: auto;
+  padding: 8px 12px;
+  border-radius: 999px;
+}
+
+.add-form .bulk-picker-link {
+  background: transparent;
+  border: 1px solid var(--line);
+}
+
+#bulkStudentSearch {
+  margin-top: 12px;
+}
+
+.bulk-picker-actions {
+  margin: 10px 0;
+  justify-content: flex-start;
+}
+
+.bulk-student-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.bulk-student-option {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  margin: 0 !important;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: white;
+  cursor: pointer;
+}
+
+.bulk-student-option:has(input:checked) {
+  border-color: var(--yellow);
+  background: var(--yellow-soft);
+}
+
+.bulk-student-option input {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  accent-color: var(--black);
+}
+
+.bulk-student-option span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: .9rem;
+}
+
+.bulk-student-empty {
+  grid-column: 1 / -1;
+  padding: 14px;
+  text-align: center;
+  color: var(--gray);
+}
+
+.advanced-fields,
+.advanced-fields[open] {
+  display: block;
+  grid-column: 1 / -1;
+  padding: 14px;
+  border-radius: 18px;
+}
+
+.advanced-fields summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0;
+  padding: 2px 0;
+}
+
+.advanced-fields[open] summary {
+  margin-bottom: 12px;
+}
+
+.advanced-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.advanced-fields-grid label {
+  display: block;
+  margin: 0;
+  font-weight: 900;
+  color: var(--black);
+}
+
+.advanced-fields-grid label > input,
+.advanced-fields-grid label > select,
+.advanced-fields-grid label > textarea {
+  margin-top: 6px;
+}
+
+.advanced-fields-grid .wide-field {
+  grid-column: 1 / -1;
+}
+
+.advanced-fields-grid textarea {
+  min-height: 86px;
+  resize: vertical;
+}
+
+@media (max-width: 650px) {
+  .bulk-student-list {
+    grid-template-columns: 1fr;
+    max-height: 300px;
+  }
+
+  .advanced-fields-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .advanced-fields,
+  .advanced-fields[open] {
+    padding: 12px;
+  }
+}
+
+/* =========================
+   KINDNESS SETTLEMENT DASHBOARD
+========================= */
+.kindness-settlement-modal-card {
+  width: min(820px, 100%);
+}
+
+.kindness-settlement-summary,
+.kindness-settlement-counts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 12px 0;
+}
+
+
+.kindness-breakdown-title {
+  margin: 18px 0 6px;
+  font-weight: 950;
+  color: #5f4700;
+  font-size: 1rem;
+}
+
+.kindness-settlement-summary span,
+.kindness-settlement-counts span {
+  background: #fff4c9;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px 12px;
+  font-weight: 900;
+}
+
+.kindness-settlement-list {
+  display: grid;
+  gap: 10px;
+  max-height: 58vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.kindness-settlement-item {
+  width: 100%;
+  text-align: left;
+  background: #fffaf0;
+  border: 1px solid var(--line);
+  border-left: 7px solid var(--orange);
+  border-radius: 16px;
+  padding: 12px;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.kindness-settlement-item.completed {
+  border-left-color: var(--green);
+}
+
+.kindness-settlement-item strong,
+.kindness-settlement-item small,
+.kindness-settlement-item em,
+.kindness-settlement-item span {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.kindness-settlement-item em {
+  color: #6d5100;
+}
+
+@media (max-width: 650px) {
+  .kindness-settlement-summary,
+  .kindness-settlement-counts {
+    grid-template-columns: 1fr;
+  }
+
+  .kindness-settlement-list {
+    max-height: 64vh;
+  }
+}
+
+/* =========================
+   MAIN SETTLEMENT FIELD FIX
+========================= */
+.main-form-field {
+  display: block;
+  margin: 0;
+  font-weight: 900;
+  color: var(--black);
+}
+
+.main-form-field > select,
+.main-form-field > input,
+.main-form-field > textarea {
+  margin-top: 6px;
+}
+
+.settlement-main-field {
+  background: linear-gradient(135deg, #fff9df, #fffdf4);
+  border: 1px solid rgba(255,216,61,.55);
+  border-radius: 18px;
+  padding: 10px;
+}
+
+.settlement-main-field select {
+  margin-bottom: 0;
+}
+
+@media (max-width: 650px) {
+  .settlement-main-field {
+    padding: 9px;
+    border-radius: 15px;
+  }
+}
+
+/* =========================
+   SIMPLIFIED MANAGE FEES UI
+========================= */
+.manage-fees-card {
+  width: min(860px, 100%);
+}
+
+.simplified-fees-form {
+  grid-template-columns: 1.3fr .55fr 1.3fr .8fr;
+  gap: 12px;
+}
+
+.simplified-fees-form .fee-advanced-fields {
+  grid-column: 1 / -1;
+  border: 1px dashed rgba(17, 24, 39, .15);
+  border-radius: 16px;
+  padding: 10px 12px;
+  background: rgba(255,255,255,.55);
+}
+
+.simplified-fees-form .fee-advanced-fields summary {
+  cursor: pointer;
+  font-weight: 900;
+  color: var(--gray);
+}
+
+.fee-advanced-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.small-guide {
+  font-size: .82rem;
+  margin-top: 8px;
+  color: var(--gray);
+}
+
+.advanced-fee-note {
+  opacity: .62;
+  font-size: .72rem !important;
+}
+
+@media (max-width: 900px) {
+  .simplified-fees-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 650px) {
+  .simplified-fees-form,
+  .fee-advanced-grid {
+    grid-template-columns: 1fr;
+  }
+
+}
+
+/* Attendance tools: hidden but easy to open, placed before checking list */
+.attendance-tools-panel {
+  margin: 12px 0 12px;
+  border: 1px solid rgba(161, 98, 7, 0.18);
+  border-radius: 16px;
+  background: linear-gradient(135deg, #fffdf5, #fff7c2);
+  overflow: hidden;
+}
+
+.attendance-tools-panel summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #111827;
+  list-style: none;
+}
+
+.attendance-tools-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+.attendance-tools-panel summary span {
+  font-weight: 950;
+  font-size: 0.95rem;
+}
+
+.attendance-tools-panel summary small {
+  color: #92400e;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.attendance-tools-panel summary::after {
+  content: "Open";
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #111111;
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 950;
+}
+
+.attendance-tools-panel[open] summary {
+  border-bottom: 1px solid rgba(161, 98, 7, 0.16);
+}
+
+.attendance-tools-panel[open] summary::after {
+  content: "Hide";
+  background: #facc15;
+  color: #111111;
+}
+
+.attendance-tools-panel .attendance-extra-toolbar,
+.attendance-tools-panel .attendance-summary,
+.attendance-tools-panel .attendance-board {
+  margin-left: 12px;
+  margin-right: 12px;
+}
+
+.attendance-tools-panel .attendance-extra-toolbar {
+  margin-top: 12px;
+}
+
+.attendance-tools-panel .attendance-board {
+  margin-bottom: 12px;
+}
+
+@media (max-width: 650px) {
+  .attendance-tools-panel summary {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    padding: 10px 12px;
+  }
+
+  .attendance-tools-panel summary span {
+    font-size: 0.86rem;
+  }
+
+  .attendance-tools-panel summary small {
+    display: none;
+  }
+
+  .attendance-tools-panel summary::after {
+    padding: 5px 10px;
+    font-size: 0.7rem;
+  }
+
+  .attendance-tools-panel .attendance-extra-toolbar,
+  .attendance-tools-panel .attendance-summary,
+  .attendance-tools-panel .attendance-board {
+    margin-left: 8px;
+    margin-right: 8px;
+  }
+}
