@@ -35,3 +35,10 @@ Quick order:
 3. Click Import to Firebase.
 4. When it says Done, open index.html.
 5. Test add/edit/delete violation and save attendance.
+
+Auth lock update:
+1. Enable Firebase Authentication > Email/Password.
+2. Add at least one user in Authentication > Users.
+3. Upload the updated files including firebase-auth-gate.js.
+4. Test login first.
+5. After login works, paste FIRESTORE_RULES_SIGNED_IN.txt into Firestore Rules and publish.

@@ -1,0 +1,33 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    match /kindtrack_students/{docId} {
+      allow read, write: if signedIn();
+    }
+
+    match /kindtrack_violation_types/{docId} {
+      allow read, write: if signedIn();
+    }
+
+    match /kindtrack_violations/{docId} {
+      allow read, write: if signedIn();
+    }
+
+    match /kindtrack_settings/{docId} {
+      allow read, write: if signedIn();
+    }
+
+    match /kindtrack_attendance/{docId} {
+      allow read, write: if signedIn();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

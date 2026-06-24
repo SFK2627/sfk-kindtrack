@@ -1,11 +1,13 @@
-const CACHE_NAME = 'sfk-kindtrack-pwa-v6-firebase';
+const CACHE_NAME = 'sfk-kindtrack-pwa-v7-auth';
 const APP_SHELL = [
   './',
   './index.html',
   './style.css',
   './firebase-config.js',
+  './firebase-auth-gate.js',
   './firebase-adapter.js',
   './firebase-import.html',
+  './FIRESTORE_RULES_SIGNED_IN.txt',
   './script.js',
   './manifest.json',
   './icons/icon-192.png',
