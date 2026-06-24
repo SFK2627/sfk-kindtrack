@@ -1,853 +1,514 @@
-/*
-  SFK KindTrack Apps Script update with Daily Attendance
-
-  Required sheets:
-  Students
-  ViolationTypes
-  Violations
-  Settings
-  Attendance
-
-  Attendance headers:
-  AttendanceID | StudentID | Date | Status | Remarks
-
-  ViolationTypes extra optional headers:
-  KindnessAlternative | KindnessValue
-
-  Violations extra optional headers:
-  SettlementType | KindnessTask | KindnessStatus | KindnessCompletedDate
-
-  Auto Tardiness violation:
-  When attendance status is Tardy, this script creates one Tardiness
-  violation for the same student/date. It uses AutoSource and AutoKey
-  to prevent duplicates. If the status is changed away from Tardy,
-  the auto-created violation for that date is removed.
-
-  Replace your Code.gs with this file, then deploy a NEW VERSION.
-*/
-
-function doGet() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-
-  const data = {
-    students: getSheetData(ss.getSheetByName('Students')),
-    violationTypes: getSheetData(ss.getSheetByName('ViolationTypes')),
-    violations: getSheetData(ss.getSheetByName('Violations')),
-    settings: getSheetData(ss.getSheetByName('Settings')),
-    attendance: getSheetData(ss.getSheetByName('Attendance'))
+(function setupKindTrackFirebaseAdapter() {
+  const SCRIPT_API_MARKER = "script.google.com/macros/s/";
+  const COLLECTIONS = {
+    students: "kindtrack_students",
+    violationTypes: "kindtrack_violation_types",
+    violations: "kindtrack_violations",
+    settings: "kindtrack_settings",
+    attendance: "kindtrack_attendance"
   };
 
-  return jsonResponse(data);
-}
+  const originalFetch = window.fetch.bind(window);
+  const serverTimestamp = () => window.firebase.firestore.FieldValue.serverTimestamp();
 
-function doPost(e) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const data = JSON.parse(e.postData.contents);
-
-  if (data.action === 'saveAttendance') {
-    return saveAttendanceRecords(ss, data);
-  }
-
-  if (data.action === 'saveAttendanceFast') {
-    return saveAttendanceFastRecords(ss, data);
-  }
-
-  if (data.action === 'bulkAddViolationTypes') {
-    return bulkAddViolationTypes(ss, data);
-  }
-
-  const sheet = ensureSheetWithHeaders(ss, 'Violations', [
-    'RecordID',
-    'StudentID',
-    'Date',
-    'ViolationType',
-    'Fee',
-    'Status',
-    'ActionTaken',
-    'ReflectionCommitment',
-    'FollowUpDate',
-    'FollowUpStatus',
-    'ParentContacted',
-    'Notes',
-    'EncodedBy',
-    'AutoSource',
-    'AutoKey',
-    'SettlementType',
-    'KindnessTask',
-    'KindnessStatus',
-    'KindnessCompletedDate'
-  ]);
-
-  ensureColumn(sheet, 'ActionTaken');
-  ensureColumn(sheet, 'ReflectionCommitment');
-  ensureColumn(sheet, 'FollowUpDate');
-  ensureColumn(sheet, 'FollowUpStatus');
-  ensureColumn(sheet, 'ParentContacted');
-  ensureColumn(sheet, 'AutoSource');
-  ensureColumn(sheet, 'AutoKey');
-  ensureColumn(sheet, 'SettlementType');
-  ensureColumn(sheet, 'KindnessTask');
-  ensureColumn(sheet, 'KindnessStatus');
-  ensureColumn(sheet, 'KindnessCompletedDate');
-
-  if (data.action === 'bulkAddViolations') {
-    const studentIds = Array.from(new Set(
-      (Array.isArray(data.studentIds) ? data.studentIds : [])
-        .map(function(studentId) { return String(studentId || '').trim(); })
-        .filter(Boolean)
-    ));
-
-    if (!studentIds.length) {
-      return jsonResponse({ success: false, message: 'No students selected' });
+  function getFirestore() {
+    if (!window.firebase || !window.firebase.firestore) {
+      throw new Error("Firebase Firestore SDK is not loaded.");
     }
 
-    const settlement = normalizeViolationSettlementForSheet(data);
-    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-    const recordIds = studentIds.map(function(studentId, index) {
-      return 'REC-' + new Date().getTime() + '-' + (index + 1);
+    if (!window.firebase.apps.length && window.SFK_KINDTRACK_FIREBASE_CONFIG) {
+      window.firebase.initializeApp(window.SFK_KINDTRACK_FIREBASE_CONFIG);
+    }
+
+    return window.firebase.firestore();
+  }
+
+  function isKindTrackApiRequest(resource) {
+    const url = typeof resource === "string" ? resource : (resource && resource.url) || "";
+    return url.includes(SCRIPT_API_MARKER);
+  }
+
+  function jsonResponse(data, status = 200) {
+    return new Response(JSON.stringify(data), {
+      status,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+
+  function stripInternalFields(row) {
+    const output = {};
+    Object.keys(row || {}).forEach((key) => {
+      if (!key.startsWith("__")) output[key] = row[key];
+    });
+    return output;
+  }
+
+  function normalizeDocId(value, fallback) {
+    const raw = String(value || fallback || "").trim() || `DOC-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    return raw.replace(/[\\/#?[\]]/g, "_").slice(0, 140);
+  }
+
+  function normalizeNameKey(value) {
+    return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
+  }
+
+  function normalizeDate(value) {
+    if (!value) return "";
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      return value.toISOString().slice(0, 10);
+    }
+
+    const text = String(value).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+
+    const parsed = new Date(text);
+    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
+    return text;
+  }
+
+  function normalizeAttendanceStatus(status) {
+    const normalized = String(status || "").trim().toLowerCase();
+    if (["late", "lates", "tardy", "tardiness"].includes(normalized)) return "Tardy";
+    if (normalized === "absent") return "Absent";
+    if (normalized === "excused") return "Excused";
+    return "Present";
+  }
+
+  function isPaidWithKindnessStatus(value) {
+    const normalized = String(value || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+    return normalized === "paidwithkindness" || normalized === "kindnesspaid" || normalized === "paidkindness";
+  }
+
+  function isKindnessSettlement(value) {
+    return String(value || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "").includes("kindness");
+  }
+
+  function normalizeViolationSettlement(data) {
+    const status = String(data.status || data.Status || "").trim();
+    let settlementType = String(data.settlementType || data.SettlementType || data["Settlement Type"] || "Cash").trim();
+    let kindnessTask = String(data.kindnessTask || data.KindnessTask || data["Kindness Task"] || "").trim();
+    let kindnessStatus = String(data.kindnessStatus || data.KindnessStatus || data["Kindness Status"] || "Pending").trim();
+    let kindnessCompletedDate = normalizeDate(data.kindnessCompletedDate || data.KindnessCompletedDate || data["Kindness Completed Date"] || "");
+
+    if (!settlementType) settlementType = "Cash";
+    if (!kindnessStatus) kindnessStatus = "Pending";
+
+    if (isPaidWithKindnessStatus(status)) {
+      settlementType = "Kindness Alternative Payment";
+      kindnessStatus = "Completed";
+      if (!kindnessCompletedDate) kindnessCompletedDate = normalizeDate(new Date());
+    }
+
+    if (isKindnessSettlement(settlementType) && kindnessCompletedDate && String(kindnessStatus).toLowerCase() !== "completed") {
+      kindnessStatus = "Completed";
+    }
+
+    if (!isKindnessSettlement(settlementType)) {
+      kindnessTask = "";
+      kindnessStatus = "Pending";
+      kindnessCompletedDate = "";
+    }
+
+    return {
+      SettlementType: settlementType,
+      KindnessTask: kindnessTask,
+      KindnessStatus: kindnessStatus,
+      KindnessCompletedDate: kindnessCompletedDate
+    };
+  }
+
+  async function getRows(collectionName) {
+    const snapshot = await getFirestore().collection(collectionName).get();
+    return snapshot.docs
+      .sort((a, b) => {
+        const left = a.data() || {};
+        const right = b.data() || {};
+        const orderA = Number(left.__order || left.Order || 0);
+        const orderB = Number(right.__order || right.Order || 0);
+        if (orderA || orderB) return orderA - orderB;
+        return JSON.stringify(left).localeCompare(JSON.stringify(right));
+      })
+      .map((doc) => stripInternalFields(doc.data()));
+  }
+
+  async function handleGet() {
+    const [students, violationTypes, violations, settings, attendance] = await Promise.all([
+      getRows(COLLECTIONS.students),
+      getRows(COLLECTIONS.violationTypes),
+      getRows(COLLECTIONS.violations),
+      getRows(COLLECTIONS.settings),
+      getRows(COLLECTIONS.attendance)
+    ]);
+
+    return {
+      students,
+      violationTypes,
+      violations,
+      settings,
+      attendance
+    };
+  }
+
+  async function readJsonBody(resource, init) {
+    if (init && init.body) return JSON.parse(init.body);
+    if (resource && typeof resource.clone === "function") {
+      const text = await resource.clone().text();
+      return text ? JSON.parse(text) : {};
+    }
+    return {};
+  }
+
+  function buildViolationRow(data, recordId, studentId) {
+    const settlement = normalizeViolationSettlement(data);
+    return {
+      RecordID: recordId,
+      StudentID: studentId,
+      Date: normalizeDate(data.date),
+      ViolationType: data.violationType,
+      Fee: Number(data.fee) || 0,
+      Status: data.status || "Unpaid",
+      ActionTaken: data.actionTaken || "",
+      ReflectionCommitment: data.reflection || "",
+      FollowUpDate: normalizeDate(data.followUpDate || ""),
+      FollowUpStatus: data.followUpStatus || "Pending",
+      ParentContacted: data.parentContacted || "No",
+      Notes: data.notes || "",
+      EncodedBy: data.encodedBy || "Sir JR",
+      SettlementType: settlement.SettlementType,
+      KindnessTask: settlement.KindnessTask,
+      KindnessStatus: settlement.KindnessStatus,
+      KindnessCompletedDate: settlement.KindnessCompletedDate,
+      __updatedAt: serverTimestamp()
+    };
+  }
+
+  async function findDocByField(collectionName, field, value) {
+    const db = getFirestore();
+    const direct = await db.collection(collectionName).doc(normalizeDocId(value)).get();
+    if (direct.exists) return direct.ref;
+
+    const query = await db.collection(collectionName).where(field, "==", value).limit(1).get();
+    if (!query.empty) return query.docs[0].ref;
+    return null;
+  }
+
+  async function getTardinessType() {
+    const rows = await getRows(COLLECTIONS.violationTypes);
+    return rows.find((row) => {
+      const name = String(row.ViolationName || "").trim().toLowerCase();
+      return name === "tardiness" || name === "tardy" || name.includes("tardy") || name.includes("late");
+    }) || { ViolationName: "Tardiness", Fee: 0, KindnessAlternative: "", KindnessValue: "" };
+  }
+
+  function buildTardyAutoKey(date, studentId) {
+    return `ATT-TARDY-${normalizeDate(date)}-${String(studentId).trim()}`;
+  }
+
+  async function syncTardyViolations(date, attendanceRecords) {
+    const db = getFirestore();
+    const batch = db.batch();
+    const tardiness = await getTardinessType();
+    const violationName = tardiness.ViolationName || "Tardiness";
+    const violationFee = Number(tardiness.Fee) || 0;
+    const kindnessTask = tardiness.KindnessAlternative
+      ? `${tardiness.KindnessAlternative}${tardiness.KindnessValue ? ` (${tardiness.KindnessValue})` : ""}`
+      : "";
+    const result = { created: 0, updated: 0, removed: 0 };
+
+    for (const record of attendanceRecords) {
+      const studentId = String(record.studentId || record.StudentID || "").trim();
+      if (!studentId) continue;
+
+      const autoKey = buildTardyAutoKey(date, studentId);
+      const existingQuery = await db.collection(COLLECTIONS.violations).where("AutoKey", "==", autoKey).limit(1).get();
+      const existingRef = existingQuery.empty ? null : existingQuery.docs[0].ref;
+
+      if (normalizeAttendanceStatus(record.status || record.Status) === "Tardy") {
+        const ref = existingRef || db.collection(COLLECTIONS.violations).doc(normalizeDocId(`REC-${Date.now()}-${studentId}`));
+        const row = {
+          RecordID: existingRef ? existingQuery.docs[0].data().RecordID : ref.id,
+          StudentID: studentId,
+          Date: normalizeDate(date),
+          ViolationType: violationName,
+          Fee: violationFee,
+          Status: existingRef ? existingQuery.docs[0].data().Status || "Unpaid" : "Unpaid",
+          ActionTaken: "Attendance marked Tardy / Late",
+          ReflectionCommitment: "",
+          FollowUpDate: "",
+          FollowUpStatus: "Pending",
+          ParentContacted: "No",
+          Notes: "Auto-created from Daily Attendance Tardy / Late record.",
+          EncodedBy: "Daily Attendance",
+          AutoSource: "AttendanceTardy",
+          AutoKey: autoKey,
+          SettlementType: "Cash",
+          KindnessTask: kindnessTask,
+          KindnessStatus: "Pending",
+          KindnessCompletedDate: "",
+          __updatedAt: serverTimestamp()
+        };
+
+        if (!existingRef) row.__createdAt = serverTimestamp();
+        batch.set(ref, row, { merge: true });
+        if (existingRef) result.updated++;
+        else result.created++;
+        continue;
+      }
+
+      if (existingRef) {
+        batch.delete(existingRef);
+        result.removed++;
+      }
+    }
+
+    await batch.commit();
+    return result;
+  }
+
+  async function saveAttendanceFast(data) {
+    const db = getFirestore();
+    const batch = db.batch();
+    const date = normalizeDate(data.date);
+    const records = Array.isArray(data.records) ? data.records : [];
+    const savedRecords = [];
+
+    if (!date) return { success: false, message: "Attendance date is required." };
+
+    records.forEach((record) => {
+      const studentId = String(record.studentId || record.StudentID || "").trim();
+      if (!studentId) return;
+
+      const status = normalizeAttendanceStatus(record.status || record.Status);
+      const remarks = String(record.remarks || record.Remarks || "").trim();
+      const attendanceId = `ATT-${date.replace(/-/g, "")}-${studentId}`;
+      const ref = db.collection(COLLECTIONS.attendance).doc(normalizeDocId(attendanceId));
+
+      savedRecords.push({ attendanceId, studentId, date, status, remarks });
+
+      if (status === "Present" && !remarks) {
+        batch.delete(ref);
+        return;
+      }
+
+      batch.set(ref, {
+        AttendanceID: attendanceId,
+        StudentID: studentId,
+        Date: date,
+        Status: status,
+        Remarks: remarks,
+        __updatedAt: serverTimestamp()
+      }, { merge: true });
     });
 
-    const rows = studentIds.map(function(studentId, index) {
-      const rowData = {
-        RecordID: recordIds[index],
-        StudentID: studentId,
-        Date: data.date,
-        ViolationType: data.violationType,
-        Fee: data.fee,
-        Status: data.status || 'Unpaid',
-        ActionTaken: data.actionTaken || '',
-        ReflectionCommitment: data.reflection || '',
-        FollowUpDate: data.followUpDate || '',
-        FollowUpStatus: data.followUpStatus || 'Pending',
-        ParentContacted: data.parentContacted || 'No',
-        Notes: data.notes || '',
-        EncodedBy: data.encodedBy || 'Sir JR',
-        SettlementType: settlement.SettlementType,
-        KindnessTask: settlement.KindnessTask,
-        KindnessStatus: settlement.KindnessStatus,
-        KindnessCompletedDate: settlement.KindnessCompletedDate
-      };
+    await batch.commit();
 
-      return headers.map(function(header) {
-        return rowData[header] !== undefined ? rowData[header] : '';
+    const syncResult = data.syncTardyViolations === false
+      ? { created: 0, updated: 0, removed: 0 }
+      : await syncTardyViolations(date, savedRecords);
+
+    return {
+      success: true,
+      records: savedRecords,
+      changedCount: savedRecords.length,
+      fastMode: true,
+      savedMode: "changed-records-only",
+      tardyViolationSync: syncResult
+    };
+  }
+
+  async function saveAttendance(data) {
+    const db = getFirestore();
+    const date = normalizeDate(data.date);
+    const records = Array.isArray(data.records) ? data.records : [];
+    const existing = await db.collection(COLLECTIONS.attendance).where("Date", "==", date).get();
+    const batch = db.batch();
+    const savedRecords = [];
+
+    existing.docs.forEach((doc) => batch.delete(doc.ref));
+
+    records.forEach((record) => {
+      const studentId = String(record.studentId || record.StudentID || "").trim();
+      if (!studentId) return;
+
+      const status = normalizeAttendanceStatus(record.status || record.Status);
+      const remarks = String(record.remarks || record.Remarks || "").trim();
+      const attendanceId = `ATT-${date.replace(/-/g, "")}-${studentId}`;
+      savedRecords.push({ attendanceId, studentId, date, status, remarks });
+
+      if (status === "Present" && !remarks) return;
+
+      batch.set(db.collection(COLLECTIONS.attendance).doc(normalizeDocId(attendanceId)), {
+        AttendanceID: attendanceId,
+        StudentID: studentId,
+        Date: date,
+        Status: status,
+        Remarks: remarks,
+        __updatedAt: serverTimestamp()
       });
     });
 
-    sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, headers.length).setValues(rows);
-    return jsonResponse({
-      success: true,
-      savedCount: rows.length,
-      recordIds: recordIds,
-      savedSettlement: settlement
-    });
+    await batch.commit();
+
+    const syncResult = data.syncTardyViolations === false
+      ? { created: 0, updated: 0, removed: 0 }
+      : await syncTardyViolations(date, savedRecords);
+
+    return { success: true, records: savedRecords, tardyViolationSync: syncResult };
   }
 
-  if (data.action === 'addViolation') {
-    const recordId = 'REC-' + new Date().getTime();
-    const settlement = normalizeViolationSettlementForSheet(data);
+  async function bulkAddViolationTypes(data) {
+    const db = getFirestore();
+    const records = Array.isArray(data.records) ? data.records : [];
+    const existingRows = await getRows(COLLECTIONS.violationTypes);
+    const existingNames = {};
+    let maxNumber = 0;
+    let added = 0;
+    let skipped = 0;
+    const batch = db.batch();
 
-    appendByHeaders(sheet, {
-      RecordID: recordId,
-      StudentID: data.studentId,
-      Date: data.date,
-      ViolationType: data.violationType,
-      Fee: data.fee,
-      Status: data.status,
-      ActionTaken: data.actionTaken || '',
-      ReflectionCommitment: data.reflection || '',
-      FollowUpDate: data.followUpDate || '',
-      FollowUpStatus: data.followUpStatus || 'Pending',
-      ParentContacted: data.parentContacted || 'No',
-      Notes: data.notes || '',
-      EncodedBy: data.encodedBy || 'Sir JR',
-      SettlementType: settlement.SettlementType,
-      KindnessTask: settlement.KindnessTask,
-      KindnessStatus: settlement.KindnessStatus,
-      KindnessCompletedDate: settlement.KindnessCompletedDate
+    existingRows.forEach((row) => {
+      const nameKey = normalizeNameKey(row.ViolationName);
+      if (nameKey) existingNames[nameKey] = true;
+      const idMatch = String(row.ViolationID || "").match(/(\d+)/);
+      if (idMatch) maxNumber = Math.max(maxNumber, Number(idMatch[1]) || 0);
     });
 
-    return jsonResponse({ success: true, recordId: recordId, savedSettlement: settlement });
-  }
+    records.forEach((record) => {
+      const name = String(record.name || record.ViolationName || "").trim();
+      const nameKey = normalizeNameKey(name);
 
-  if (data.action === 'editViolation') {
-    const row = findRowByRecordId(sheet, data.recordId);
-    const settlement = normalizeViolationSettlementForSheet(data);
-
-    if (!row) {
-      return jsonResponse({ success: false, message: 'Record not found' });
-    }
-
-    updateByHeaders(sheet, row, {
-      Date: data.date,
-      ViolationType: data.violationType,
-      Fee: data.fee,
-      Status: data.status,
-      ActionTaken: data.actionTaken || '',
-      ReflectionCommitment: data.reflection || '',
-      FollowUpDate: data.followUpDate || '',
-      FollowUpStatus: data.followUpStatus || 'Pending',
-      ParentContacted: data.parentContacted || 'No',
-      Notes: data.notes || '',
-      SettlementType: settlement.SettlementType,
-      KindnessTask: settlement.KindnessTask,
-      KindnessStatus: settlement.KindnessStatus,
-      KindnessCompletedDate: settlement.KindnessCompletedDate
-    });
-
-    return jsonResponse({ success: true, savedSettlement: settlement });
-  }
-
-  if (data.action === 'deleteViolation') {
-    const row = findRowByRecordId(sheet, data.recordId);
-
-    if (!row) {
-      return jsonResponse({ success: false, message: 'Record not found' });
-    }
-
-    sheet.deleteRow(row);
-    return jsonResponse({ success: true });
-  }
-
-  return jsonResponse({ success: false, message: 'Invalid action' });
-}
-
-
-function isPaidWithKindnessStatusForSheet(value) {
-  const normalized = String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-  return normalized === 'paidwithkindness' || normalized === 'kindnesspaid' || normalized === 'paidkindness';
-}
-
-function isKindnessSettlementForSheet(value) {
-  const normalized = String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-  return normalized.includes('kindness');
-}
-
-function normalizeViolationSettlementForSheet(data) {
-  const status = String(data.status || data.Status || '').trim();
-  let settlementType = String(data.settlementType || data.SettlementType || data['Settlement Type'] || 'Cash').trim();
-  let kindnessTask = String(data.kindnessTask || data.KindnessTask || data['Kindness Task'] || '').trim();
-  let kindnessStatus = String(data.kindnessStatus || data.KindnessStatus || data['Kindness Status'] || 'Pending').trim();
-  let kindnessCompletedDate = normalizeDate(data.kindnessCompletedDate || data.KindnessCompletedDate || data['Kindness Completed Date'] || '');
-
-  if (!settlementType) settlementType = 'Cash';
-  if (!kindnessStatus) kindnessStatus = 'Pending';
-
-  if (isPaidWithKindnessStatusForSheet(status)) {
-    settlementType = 'Kindness Alternative Payment';
-    kindnessStatus = 'Completed';
-    if (!kindnessCompletedDate) {
-      kindnessCompletedDate = normalizeDate(new Date());
-    }
-  }
-
-  if (isKindnessSettlementForSheet(settlementType) && kindnessCompletedDate && String(kindnessStatus).toLowerCase() !== 'completed') {
-    kindnessStatus = 'Completed';
-  }
-
-  if (!isKindnessSettlementForSheet(settlementType)) {
-    kindnessTask = '';
-    kindnessStatus = 'Pending';
-    kindnessCompletedDate = '';
-  }
-
-  return {
-    SettlementType: settlementType,
-    KindnessTask: kindnessTask,
-    KindnessStatus: kindnessStatus,
-    KindnessCompletedDate: kindnessCompletedDate
-  };
-}
-
-function saveAttendanceFastRecords(ss, data) {
-  const sheet = ensureSheetWithHeaders(ss, 'Attendance', [
-    'AttendanceID',
-    'StudentID',
-    'Date',
-    'Status',
-    'Remarks'
-  ]);
-
-  const date = normalizeDate(data.date);
-  const records = Array.isArray(data.records) ? data.records : [];
-
-  if (!date) {
-    return jsonResponse({ success: false, message: 'Attendance date is required.' });
-  }
-
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const lastRow = sheet.getLastRow();
-  const values = lastRow > 1 ? sheet.getRange(2, 1, lastRow - 1, headers.length).getValues() : [];
-  const studentIndex = headers.indexOf('StudentID');
-  const dateIndex = headers.indexOf('Date');
-  const rowByKey = {};
-
-  values.forEach((row, index) => {
-    const studentId = String(row[studentIndex] || '').trim();
-    const rowDate = normalizeDate(row[dateIndex]);
-    if (!studentId || !rowDate) return;
-    rowByKey[rowDate + '|' + studentId] = {
-      rowNumber: index + 2,
-      row: row.slice()
-    };
-  });
-
-  const changedRecords = [];
-  const rowUpdates = [];
-  const rowsToAppend = [];
-  const todayKey = date.replace(/-/g, '');
-
-  records.forEach(record => {
-    const studentId = String(record.studentId || record.StudentID || '').trim();
-    if (!studentId) return;
-
-    const status = normalizeAttendanceStatusForSheet(record.status || record.Status);
-    const remarks = String(record.remarks || record.Remarks || '').trim();
-    const attendanceId = 'ATT-' + todayKey + '-' + studentId;
-    const recordData = {
-      AttendanceID: attendanceId,
-      StudentID: studentId,
-      Date: date,
-      Status: status,
-      Remarks: remarks
-    };
-    const outputRow = headers.map(header => recordData[header] !== undefined ? recordData[header] : '');
-    const key = date + '|' + studentId;
-    const existing = rowByKey[key];
-
-    changedRecords.push({
-      attendanceId: attendanceId,
-      studentId: studentId,
-      date: date,
-      status: status,
-      remarks: remarks
-    });
-
-    if (existing) {
-      rowUpdates.push({ rowNumber: existing.rowNumber, row: outputRow });
-      return;
-    }
-
-    // If the new state is plain Present and no row exists yet, we do not need a row.
-    // Students are Present by default in the app.
-    if (status === 'Present' && !remarks) return;
-
-    rowsToAppend.push(outputRow);
-  });
-
-  writeRowsByNumber(sheet, rowUpdates, headers.length);
-
-  if (rowsToAppend.length > 0) {
-    sheet.getRange(sheet.getLastRow() + 1, 1, rowsToAppend.length, headers.length).setValues(rowsToAppend);
-  }
-
-  const syncResult = data.syncTardyViolations === false
-    ? { created: 0, updated: 0, removed: 0 }
-    : syncTardyViolations(ss, date, changedRecords);
-
-  return jsonResponse({
-    success: true,
-    records: changedRecords,
-    changedCount: changedRecords.length,
-    fastMode: true,
-    savedMode: 'changed-records-only',
-    tardyViolationSync: syncResult
-  });
-}
-
-function writeRowsByNumber(sheet, rowUpdates, width) {
-  if (!rowUpdates || rowUpdates.length === 0) return;
-
-  const sorted = rowUpdates.slice().sort((a, b) => a.rowNumber - b.rowNumber);
-  let groupStart = sorted[0].rowNumber;
-  let groupRows = [sorted[0].row];
-  let previousRow = sorted[0].rowNumber;
-
-  for (let i = 1; i < sorted.length; i++) {
-    const item = sorted[i];
-
-    if (item.rowNumber === previousRow + 1) {
-      groupRows.push(item.row);
-      previousRow = item.rowNumber;
-      continue;
-    }
-
-    sheet.getRange(groupStart, 1, groupRows.length, width).setValues(groupRows);
-    groupStart = item.rowNumber;
-    groupRows = [item.row];
-    previousRow = item.rowNumber;
-  }
-
-  sheet.getRange(groupStart, 1, groupRows.length, width).setValues(groupRows);
-}
-
-function saveAttendanceRecords(ss, data) {
-  const sheet = ensureSheetWithHeaders(ss, 'Attendance', [
-    'AttendanceID',
-    'StudentID',
-    'Date',
-    'Status',
-    'Remarks'
-  ]);
-
-  const date = normalizeDate(data.date);
-  const records = Array.isArray(data.records) ? data.records : [];
-  const savedRecords = [];
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const values = sheet.getDataRange().getValues();
-  const existingRows = values.length > 1 ? values.slice(1) : [];
-  const dateIndex = headers.indexOf('Date');
-  const rowsFromOtherDates = existingRows.filter(row =>
-    normalizeDate(row[dateIndex]) !== date
-  );
-
-  const rowsForSelectedDate = records.map(record => {
-    const studentId = String(record.studentId || record.StudentID || '').trim();
-    if (!studentId) return null;
-
-    const status = normalizeAttendanceStatusForSheet(record.status || record.Status);
-    const attendanceId = 'ATT-' + date.replace(/-/g, '') + '-' + studentId;
-    const recordData = {
-      AttendanceID: attendanceId,
-      StudentID: studentId,
-      Date: date,
-      Status: status,
-      Remarks: record.remarks || ''
-    };
-
-    savedRecords.push({
-      attendanceId: attendanceId,
-      studentId: studentId,
-      date: date,
-      status: status,
-      remarks: record.remarks || ''
-    });
-
-    return headers.map(header => recordData[header] !== undefined ? recordData[header] : '');
-  }).filter(Boolean);
-
-  const outputRows = rowsFromOtherDates.concat(rowsForSelectedDate);
-
-  sheet.clearContents();
-  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-
-  if (outputRows.length > 0) {
-    sheet.getRange(2, 1, outputRows.length, headers.length).setValues(outputRows);
-  }
-
-  const syncResult = data.syncTardyViolations === false
-    ? { created: 0, updated: 0, removed: 0 }
-    : syncTardyViolations(ss, date, savedRecords);
-
-  return jsonResponse({
-    success: true,
-    records: savedRecords,
-    tardyViolationSync: syncResult
-  });
-}
-
-function syncTardyViolations(ss, date, attendanceRecords) {
-  const violationsSheet = ensureSheetWithHeaders(ss, 'Violations', [
-    'RecordID',
-    'StudentID',
-    'Date',
-    'ViolationType',
-    'Fee',
-    'Status',
-    'ActionTaken',
-    'ReflectionCommitment',
-    'FollowUpDate',
-    'FollowUpStatus',
-    'ParentContacted',
-    'Notes',
-    'EncodedBy',
-    'AutoSource',
-    'AutoKey',
-    'SettlementType',
-    'KindnessTask',
-    'KindnessStatus',
-    'KindnessCompletedDate'
-  ]);
-
-  ensureColumn(violationsSheet, 'ActionTaken');
-  ensureColumn(violationsSheet, 'ReflectionCommitment');
-  ensureColumn(violationsSheet, 'FollowUpDate');
-  ensureColumn(violationsSheet, 'FollowUpStatus');
-  ensureColumn(violationsSheet, 'ParentContacted');
-  ensureColumn(violationsSheet, 'AutoSource');
-  ensureColumn(violationsSheet, 'AutoKey');
-  ensureColumn(violationsSheet, 'SettlementType');
-  ensureColumn(violationsSheet, 'KindnessTask');
-  ensureColumn(violationsSheet, 'KindnessStatus');
-  ensureColumn(violationsSheet, 'KindnessCompletedDate');
-
-  const headers = violationsSheet.getRange(1, 1, 1, violationsSheet.getLastColumn()).getValues()[0];
-  const lastRow = violationsSheet.getLastRow();
-  const values = lastRow > 1 ? violationsSheet.getRange(2, 1, lastRow - 1, headers.length).getValues() : [];
-  const autoKeyIndex = headers.indexOf('AutoKey');
-  const rowByAutoKey = {};
-
-  values.forEach((row, index) => {
-    const key = String(row[autoKeyIndex] || '').trim();
-    if (!key) return;
-    rowByAutoKey[key] = {
-      rowNumber: index + 2,
-      row: row.slice()
-    };
-  });
-
-  const tardinessType = getTardinessType(ss);
-  const violationName = tardinessType.name || 'Tardiness';
-  const violationFee = tardinessType.fee || 0;
-  const kindnessTask = tardinessType.kindnessAlternative
-    ? (tardinessType.kindnessAlternative + (tardinessType.kindnessValue ? ' (' + tardinessType.kindnessValue + ')' : ''))
-    : '';
-  const result = { created: 0, updated: 0, removed: 0 };
-  const rowUpdates = [];
-  const rowsToAppend = [];
-  const rowsToDelete = [];
-
-  attendanceRecords.forEach(record => {
-    const studentId = String(record.studentId || '').trim();
-    if (!studentId) return;
-
-    const autoKey = buildTardyAutoKey(date, studentId);
-    const existing = rowByAutoKey[autoKey];
-
-    if (isTardyAttendanceStatus(record.status)) {
-      const data = {
-        Date: date,
-        ViolationType: violationName,
-        Fee: violationFee,
-        ActionTaken: 'Attendance marked Tardy / Late',
-        ReflectionCommitment: '',
-        FollowUpDate: '',
-        FollowUpStatus: 'Pending',
-        ParentContacted: 'No',
-        Notes: 'Auto-created from Daily Attendance Tardy / Late record.',
-        EncodedBy: 'Daily Attendance',
-        AutoSource: 'AttendanceTardy',
-        AutoKey: autoKey,
-        SettlementType: 'Cash',
-        KindnessTask: kindnessTask,
-        KindnessStatus: 'Pending',
-        KindnessCompletedDate: ''
-      };
-
-      if (existing) {
-        const updatedRow = existing.row.slice();
-        headers.forEach((header, colIndex) => {
-          if (data[header] !== undefined) {
-            updatedRow[colIndex] = data[header];
-          }
-        });
-        rowUpdates.push({ rowNumber: existing.rowNumber, row: updatedRow });
-        result.updated++;
-      } else {
-        const newRecord = Object.assign({
-          RecordID: 'REC-' + new Date().getTime() + '-' + studentId,
-          StudentID: studentId,
-          Status: 'Unpaid'
-        }, data);
-        rowsToAppend.push(headers.map(header => newRecord[header] !== undefined ? newRecord[header] : ''));
-        result.created++;
+      if (!name || existingNames[nameKey]) {
+        skipped++;
+        return;
       }
 
-      return;
-    }
+      maxNumber++;
+      const violationId = `V${String(maxNumber).padStart(3, "0")}`;
+      batch.set(db.collection(COLLECTIONS.violationTypes).doc(normalizeDocId(violationId)), {
+        ViolationID: violationId,
+        ViolationName: name,
+        Fee: Number(record.fee || record.Fee) || 0,
+        AlertThreshold: Number(record.threshold || record.AlertThreshold) || 3,
+        Category: String(record.category || record.Category || "").trim(),
+        KindnessAlternative: String(record.kindnessAlternative || record.KindnessAlternative || record["Kindness Alternative"] || "").trim(),
+        KindnessValue: String(record.kindnessValue || record.KindnessValue || record["Kindness Value"] || "").trim(),
+        __createdAt: serverTimestamp(),
+        __updatedAt: serverTimestamp()
+      });
 
-    if (existing) {
-      rowsToDelete.push(existing.rowNumber);
-      result.removed++;
-    }
-  });
-
-  writeRowsByNumber(violationsSheet, rowUpdates, headers.length);
-
-  rowsToDelete.sort((a, b) => b - a).forEach(rowNumber => {
-    violationsSheet.deleteRow(rowNumber);
-  });
-
-  if (rowsToAppend.length > 0) {
-    violationsSheet.getRange(violationsSheet.getLastRow() + 1, 1, rowsToAppend.length, headers.length).setValues(rowsToAppend);
-  }
-
-  return result;
-}
-
-function bulkAddViolationTypes(ss, data) {
-  const sheet = ensureSheetWithHeaders(ss, 'ViolationTypes', [
-    'ViolationID',
-    'ViolationName',
-    'Fee',
-    'AlertThreshold',
-    'Category',
-    'KindnessAlternative',
-    'KindnessValue'
-  ]);
-
-  ensureColumn(sheet, 'KindnessAlternative');
-  ensureColumn(sheet, 'KindnessValue');
-
-  const records = Array.isArray(data.records) ? data.records : [];
-  const existingRows = getSheetData(sheet);
-  const existingNames = {};
-  let maxNumber = 0;
-  let added = 0;
-  let skipped = 0;
-
-  existingRows.forEach(row => {
-    const nameKey = normalizeNameKey(row.ViolationName);
-    if (nameKey) existingNames[nameKey] = true;
-
-    const idMatch = String(row.ViolationID || '').match(/(\d+)/);
-    if (idMatch) {
-      maxNumber = Math.max(maxNumber, Number(idMatch[1]) || 0);
-    }
-  });
-
-  records.forEach(record => {
-    const name = String(record.name || record.ViolationName || '').trim();
-    const nameKey = normalizeNameKey(name);
-
-    if (!name || existingNames[nameKey]) {
-      skipped++;
-      return;
-    }
-
-    maxNumber++;
-    const violationId = 'V' + String(maxNumber).padStart(3, '0');
-
-    appendByHeaders(sheet, {
-      ViolationID: violationId,
-      ViolationName: name,
-      Fee: Number(record.fee || record.Fee) || 0,
-      AlertThreshold: Number(record.threshold || record.AlertThreshold) || 3,
-      Category: String(record.category || record.Category || '').trim(),
-      KindnessAlternative: String(record.kindnessAlternative || record.KindnessAlternative || record['Kindness Alternative'] || '').trim(),
-      KindnessValue: String(record.kindnessValue || record.KindnessValue || record['Kindness Value'] || '').trim()
+      existingNames[nameKey] = true;
+      added++;
     });
 
-    existingNames[nameKey] = true;
-    added++;
-  });
+    await batch.commit();
+    return { success: true, added, skipped };
+  }
 
-  return jsonResponse({
-    success: true,
-    added: added,
-    skipped: skipped
-  });
-}
+  async function addViolation(data) {
+    const db = getFirestore();
+    const recordId = `REC-${Date.now()}`;
+    const row = buildViolationRow(data, recordId, data.studentId);
+    row.__createdAt = serverTimestamp();
+    await db.collection(COLLECTIONS.violations).doc(normalizeDocId(recordId)).set(row);
+    return { success: true, recordId, savedSettlement: normalizeViolationSettlement(data) };
+  }
 
-function normalizeNameKey(value) {
-  return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
-}
+  async function bulkAddViolations(data) {
+    const db = getFirestore();
+    const studentIds = Array.from(new Set((Array.isArray(data.studentIds) ? data.studentIds : [])
+      .map((studentId) => String(studentId || "").trim())
+      .filter(Boolean)));
 
-function getTardinessType(ss) {
-  const sheet = ss.getSheetByName('ViolationTypes');
-  const fallback = { name: 'Tardiness', fee: 0, kindnessAlternative: '', kindnessValue: '' };
+    if (!studentIds.length) return { success: false, message: "No students selected" };
 
-  if (!sheet) return fallback;
+    const batch = db.batch();
+    const timestamp = Date.now();
+    const recordIds = studentIds.map((studentId, index) => `REC-${timestamp}-${index + 1}`);
 
-  const rows = getSheetData(sheet);
-  const tardiness = rows.find(row => {
-    const name = String(row.ViolationName || '').trim().toLowerCase();
-    return name === 'tardiness' || name === 'tardy' || name.includes('tardy') || name.includes('late');
-  });
+    studentIds.forEach((studentId, index) => {
+      const row = buildViolationRow(data, recordIds[index], studentId);
+      row.__createdAt = serverTimestamp();
+      batch.set(db.collection(COLLECTIONS.violations).doc(normalizeDocId(recordIds[index])), row);
+    });
 
-  if (!tardiness) return fallback;
+    await batch.commit();
+    return {
+      success: true,
+      savedCount: studentIds.length,
+      recordIds,
+      savedSettlement: normalizeViolationSettlement(data)
+    };
+  }
 
-  return {
-    name: tardiness.ViolationName || 'Tardiness',
-    fee: Number(tardiness.Fee) || 0,
-    kindnessAlternative: tardiness.KindnessAlternative || tardiness['Kindness Alternative'] || '',
-    kindnessValue: tardiness.KindnessValue || tardiness['Kindness Value'] || ''
+  async function editViolation(data) {
+    const ref = await findDocByField(COLLECTIONS.violations, "RecordID", data.recordId);
+    if (!ref) return { success: false, message: "Record not found" };
+
+    const settlement = normalizeViolationSettlement(data);
+    await ref.set({
+      Date: normalizeDate(data.date),
+      ViolationType: data.violationType,
+      Fee: Number(data.fee) || 0,
+      Status: data.status,
+      ActionTaken: data.actionTaken || "",
+      ReflectionCommitment: data.reflection || "",
+      FollowUpDate: normalizeDate(data.followUpDate || ""),
+      FollowUpStatus: data.followUpStatus || "Pending",
+      ParentContacted: data.parentContacted || "No",
+      Notes: data.notes || "",
+      SettlementType: settlement.SettlementType,
+      KindnessTask: settlement.KindnessTask,
+      KindnessStatus: settlement.KindnessStatus,
+      KindnessCompletedDate: settlement.KindnessCompletedDate,
+      __updatedAt: serverTimestamp()
+    }, { merge: true });
+
+    return { success: true, savedSettlement: settlement };
+  }
+
+  async function deleteViolation(data) {
+    const ref = await findDocByField(COLLECTIONS.violations, "RecordID", data.recordId);
+    if (!ref) return { success: false, message: "Record not found" };
+    await ref.delete();
+    return { success: true };
+  }
+
+  async function handlePost(data) {
+    if (data.action === "saveAttendanceFast") return saveAttendanceFast(data);
+    if (data.action === "saveAttendance") return saveAttendance(data);
+    if (data.action === "bulkAddViolationTypes") return bulkAddViolationTypes(data);
+    if (data.action === "bulkAddViolations") return bulkAddViolations(data);
+    if (data.action === "addViolation") return addViolation(data);
+    if (data.action === "editViolation") return editViolation(data);
+    if (data.action === "deleteViolation") return deleteViolation(data);
+    return { success: false, message: "Invalid action" };
+  }
+
+  window.fetch = async function kindTrackFirebaseFetch(resource, init = {}) {
+    if (!isKindTrackApiRequest(resource)) {
+      return originalFetch(resource, init);
+    }
+
+    try {
+      const method = String((init && init.method) || (resource && resource.method) || "GET").toUpperCase();
+      if (method === "POST") {
+        if (window.SFK_KINDTRACK_AUTH) {
+          const signedIn = await window.SFK_KINDTRACK_AUTH.ensureSignedIn();
+          if (!signedIn) {
+            return jsonResponse({ success: false, message: "Firebase admin login is required to save changes." }, 401);
+          }
+        }
+        return jsonResponse(await handlePost(await readJsonBody(resource, init)));
+      }
+      return jsonResponse(await handleGet());
+    } catch (error) {
+      console.error("KindTrack Firebase adapter error:", error);
+      return jsonResponse({ success: false, message: error.message || "Firebase adapter error" }, 500);
+    }
   };
-}
 
-function normalizeAttendanceStatusForSheet(status) {
-  const normalized = String(status || '').trim().toLowerCase();
-
-  if (normalized === 'late' || normalized === 'lates' || normalized === 'tardy' || normalized === 'tardiness') {
-    return 'Tardy';
-  }
-
-  if (normalized === 'absent') return 'Absent';
-  if (normalized === 'excused') return 'Excused';
-  return 'Present';
-}
-
-function isTardyAttendanceStatus(status) {
-  return normalizeAttendanceStatusForSheet(status) === 'Tardy';
-}
-
-function buildTardyAutoKey(date, studentId) {
-  return 'ATT-TARDY-' + normalizeDate(date) + '-' + String(studentId).trim();
-}
-
-function findRowByAutoKey(sheet, autoKey) {
-  const values = sheet.getDataRange().getValues();
-  if (values.length < 2) return null;
-
-  const headers = values[0];
-  const autoKeyIndex = headers.indexOf('AutoKey');
-
-  if (autoKeyIndex === -1) return null;
-
-  for (let i = 1; i < values.length; i++) {
-    if (String(values[i][autoKeyIndex]) === String(autoKey)) {
-      return i + 1;
-    }
-  }
-
-  return null;
-}
-
-
-function rowToObject(headers, row) {
-  const object = {};
-  headers.forEach((header, index) => {
-    object[header] = row[index];
-  });
-  return object;
-}
-
-function getSheetData(sheet) {
-  if (!sheet) return [];
-
-  const values = sheet.getDataRange().getValues();
-  if (values.length < 2) return [];
-
-  const headers = values[0];
-
-  return values.slice(1).map(row => {
-    const obj = {};
-
-    headers.forEach((header, index) => {
-      obj[header] = row[index];
-    });
-
-    return obj;
-  });
-}
-
-function findRowByRecordId(sheet, recordId) {
-  const values = sheet.getDataRange().getValues();
-  const headers = values[0];
-  const recordIndex = headers.indexOf('RecordID');
-
-  if (recordIndex === -1) return null;
-
-  for (let i = 1; i < values.length; i++) {
-    if (String(values[i][recordIndex]) === String(recordId)) {
-      return i + 1;
-    }
-  }
-
-  return null;
-}
-
-function findAttendanceRow(sheet, studentId, date) {
-  const values = sheet.getDataRange().getValues();
-  if (values.length < 2) return null;
-
-  const headers = values[0];
-  const studentIndex = headers.indexOf('StudentID');
-  const dateIndex = headers.indexOf('Date');
-
-  if (studentIndex === -1 || dateIndex === -1) return null;
-
-  for (let i = 1; i < values.length; i++) {
-    const rowStudentId = String(values[i][studentIndex]).trim();
-    const rowDate = normalizeDate(values[i][dateIndex]);
-
-    if (rowStudentId === String(studentId).trim() && rowDate === date) {
-      return i + 1;
-    }
-  }
-
-  return null;
-}
-
-function ensureSheetWithHeaders(ss, sheetName, headers) {
-  let sheet = ss.getSheetByName(sheetName);
-
-  if (!sheet) {
-    sheet = ss.insertSheet(sheetName);
-  }
-
-  if (sheet.getLastColumn() === 0 || sheet.getLastRow() === 0) {
-    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-    return sheet;
-  }
-
-  headers.forEach(header => ensureColumn(sheet, header));
-  return sheet;
-}
-
-function ensureColumn(sheet, columnName) {
-  const lastColumn = sheet.getLastColumn();
-
-  if (lastColumn === 0) {
-    sheet.getRange(1, 1).setValue(columnName);
-    return;
-  }
-
-  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
-
-  if (!headers.includes(columnName)) {
-    sheet.getRange(1, lastColumn + 1).setValue(columnName);
-  }
-}
-
-function appendByHeaders(sheet, data) {
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const row = headers.map(header => data[header] !== undefined ? data[header] : '');
-  sheet.appendRow(row);
-}
-
-function updateByHeaders(sheet, rowNumber, data) {
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-
-  Object.keys(data).forEach(key => {
-    const colIndex = headers.indexOf(key);
-
-    if (colIndex !== -1) {
-      sheet.getRange(rowNumber, colIndex + 1).setValue(data[key]);
-    }
-  });
-}
-
-function normalizeDate(value) {
-  if (!value) return '';
-
-  if (Object.prototype.toString.call(value) === '[object Date]' && !isNaN(value)) {
-    return Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  }
-
-  const raw = String(value).trim();
-  if (!raw) return '';
-
-  const isoOnly = raw.split('T')[0];
-  if (/^\d{4}-\d{2}-\d{2}$/.test(isoOnly)) return isoOnly;
-
-  const slashMatch = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (slashMatch) {
-    const month = slashMatch[1].padStart(2, '0');
-    const day = slashMatch[2].padStart(2, '0');
-    const year = slashMatch[3];
-    return year + '-' + month + '-' + day;
-  }
-
-  const parsed = new Date(raw);
-  if (!isNaN(parsed)) {
-    return Utilities.formatDate(parsed, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  }
-
-  return isoOnly;
-}
-
-function jsonResponse(data) {
-  return ContentService
-    .createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON);
-}
+  window.SFK_KINDTRACK_FIREBASE_ADAPTER = {
+    collections: COLLECTIONS,
+    loadAll: handleGet
+  };
+})();
