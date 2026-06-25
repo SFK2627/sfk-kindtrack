@@ -75,13 +75,25 @@ const studentDetailsModal = document.getElementById("studentDetailsModal");
 const modalSelectedName = document.getElementById("modalSelectedName");
 const modalStudentSummary = document.getElementById("modalStudentSummary");
 const modalViolationFilter = document.getElementById("modalViolationFilter");
+const modalViolationTypeFilter = document.getElementById("modalViolationTypeFilter");
+const modalRecordSearch = document.getElementById("modalRecordSearch");
+const modalRecordDateFrom = document.getElementById("modalRecordDateFrom");
+const modalRecordDateTo = document.getElementById("modalRecordDateTo");
+const modalClearRecordFilters = document.getElementById("modalClearRecordFilters");
 const modalViolationList = document.getElementById("modalViolationList");
 const studentTimeline = document.getElementById("studentTimeline");
 const modalStudentTimeline = document.getElementById("modalStudentTimeline");
 const closeStudentDetailsModal = document.getElementById("closeStudentDetailsModal");
 const studentSort = document.getElementById("studentSort");
 const studentSearch = document.getElementById("studentSearch");
+const studentQuickFilter = document.getElementById("studentQuickFilter");
+const studentResultMeta = document.getElementById("studentResultMeta");
 const violationFilter = document.getElementById("violationFilter");
+const violationTypeFilter = document.getElementById("violationTypeFilter");
+const recordSearch = document.getElementById("recordSearch");
+const recordDateFrom = document.getElementById("recordDateFrom");
+const recordDateTo = document.getElementById("recordDateTo");
+const clearRecordFilters = document.getElementById("clearRecordFilters");
 const feeToggle = document.getElementById("feeToggle");
 const feePanel = document.getElementById("feePanel");
 const panelToggle = document.getElementById("panelToggle");
@@ -307,6 +319,7 @@ function openKindTrack(mode) {
 function resetAccessGate() {
   appMode = null;
   selectedStudent = null;
+  updateSelectedStudentUIState();
 
   if (appRoot) {
     appRoot.classList.add("hidden");
@@ -447,12 +460,18 @@ async function loadDataFromSheets() {
   }
 }
 
+function updateSelectedStudentUIState() {
+  document.body.classList.toggle("has-selected-student", Boolean(selectedStudent));
+}
+
 function renderAll() {
+  updateSelectedStudentUIState();
   renderTermLabel();
   renderDashboard();
   renderTermSummary();
   renderAlertCenter();
   renderActionTracker();
+  populateViolationTypeFilters();
   renderStudents();
   renderFeeList();
   renderManageFeesList();
@@ -949,15 +968,39 @@ function sortByGenderThenName(a, b) {
 }
 
 function getSortedStudents() {
-  const sortValue = studentSort.value;
-  const searchValue = studentSearch.value.toLowerCase().trim();
+  const sortValue = studentSort ? studentSort.value : "az";
+  const searchValue = studentSearch ? studentSearch.value.toLowerCase().trim() : "";
+  const quickFilterValue = studentQuickFilter ? studentQuickFilter.value : "all";
 
   let sorted = [...students];
 
   if (searchValue) {
-    sorted = sorted.filter(student =>
-      student.name.toLowerCase().includes(searchValue)
-    );
+    sorted = sorted.filter(student => {
+      const visibleViolations = getVisibleViolations(student);
+      const searchable = [
+        student.name,
+        student.firstName,
+        student.lastName,
+        student.gender,
+        ...visibleViolations.map(v => `${v.type} ${v.status} ${v.notes || ""}`)
+      ].join(" ").toLowerCase();
+
+      return searchable.includes(searchValue);
+    });
+  }
+
+  if (quickFilterValue !== "all") {
+    sorted = sorted.filter(student => {
+      const visibleViolations = getVisibleViolations(student);
+
+      if (quickFilterValue === "hasRecords") return visibleViolations.length > 0;
+      if (quickFilterValue === "noRecords") return visibleViolations.length === 0;
+      if (quickFilterValue === "alerts") return hasAlert(student);
+      if (quickFilterValue === "unpaid") return visibleViolations.some(v => isUnpaidStatus(v.status));
+      if (quickFilterValue === "kindnessPending") return visibleViolations.some(v => isKindnessPending(v));
+
+      return true;
+    });
   }
 
   if (sortValue === "az") {
@@ -3465,7 +3508,9 @@ function updateMobileStudentToggleLabel(count = null) {
 
 function setMobileStudentsOpen(open) {
   if (!studentPanel) return;
-  studentPanel.classList.toggle("students-open", Boolean(open));
+  const shouldOpen = Boolean(open);
+  studentPanel.classList.toggle("students-open", shouldOpen);
+  document.body.classList.toggle("student-drawer-open", shouldOpen && window.innerWidth <= 650);
   updateMobileStudentToggleLabel();
 }
 
@@ -3486,6 +3531,10 @@ function renderStudents() {
 
   const sortedStudents = getSortedStudents();
   updateMobileStudentToggleLabel(sortedStudents.length);
+
+  if (studentResultMeta) {
+    studentResultMeta.textContent = `Showing ${sortedStudents.length} of ${students.length} students`;
+  }
 
   if (sortedStudents.length === 0) {
     studentList.innerHTML = `<p class="empty-message">No students found. 🐨</p>`;
@@ -3525,6 +3574,7 @@ card.onclick = () => {
   renderStudentDetails();
 
   if (window.innerWidth <= 650) {
+    setMobileStudentsOpen(false);
     openStudentDetailsModal();
   }
 };
@@ -3534,12 +3584,12 @@ card.onclick = () => {
 }
 
 function renderStudentDetails() {
+  updateSelectedStudentUIState();
   if (!selectedStudent) return;
 
   selectedName.textContent = selectedStudent.name;
   studentSummary.innerHTML = buildStudentSummaryHTML(selectedStudent);
   renderViolationList();
-  renderStudentTimeline();
 }
 
 function buildStudentSummaryHTML(student) {
@@ -3558,7 +3608,6 @@ function buildStudentSummaryHTML(student) {
     .reduce((sum, v) => sum + getMonetaryFee(v), 0);
 
   const paidWithKindnessRecords = getPaidWithKindnessCount(visibleViolations);
-
   const repeated = getRepeatedViolation(student);
   const status = getStudentStatus(student);
   const alertDetails = getActiveAlertDetails(student);
@@ -3566,75 +3615,199 @@ function buildStudentSummaryHTML(student) {
   let alertText = "No active alert.";
 
   if (alertDetails.active) {
-    alertText = `⚠️ Active Alert: ${alertDetails.reason}. Needs ${alertDetails.missing.join(", ")}.`;
+    alertText = `Active Alert: ${alertDetails.reason}. Needs ${alertDetails.missing.join(", ")}.`;
   } else if (alertDetails.hasTrigger) {
-    alertText = `✅ Resolved / Monitored: ${alertDetails.reason}. Parent contact, follow-up, and settlement are handled.`;
+    alertText = `Resolved / Monitored: ${alertDetails.reason}. Parent contact, follow-up, and settlement are handled.`;
   } else if (repeated) {
-    alertText = `⚠️ Repeated Alert: ${repeated[0]} has been recorded ${repeated[1]}x.`;
+    alertText = `Repeated Alert: ${repeated[0]} has been recorded ${repeated[1]}x.`;
   } else if (total >= 5) {
-    alertText = `🚨 Total Alert: This student already has ${total} total violations.`;
+    alertText = `Total Alert: This student already has ${total} total violations.`;
   }
 
-  return `
-    <div class="summary-box">
-      <p>
-        <strong>Status:</strong>
-        <span class="student-status ${status.className}">
-          ${status.icon} ${status.label}
-        </span>
-      </p>
-      <p><strong>Viewing:</strong> ${getTermLabel()}</p>
-      <p><strong>Total Violations:</strong> ${total}</p>
-      <p><strong>Alert Status:</strong> ${alertText}</p>
+  const latestRecord = visibleViolations
+    .slice()
+    .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))[0];
 
-      <div class="fee-text fee-breakdown">
-        <p><strong>To Pay with Cash:</strong> ₱${totalFees}</p>
-        <p><strong>Paid:</strong> ₱${paidFees}</p>
-        <p><strong>Unpaid:</strong> ₱${unpaidFees}</p>
-        <p><strong>Waived:</strong> ₱${waivedFees}</p>
-        <p><strong>Paid with Kindness:</strong> ${paidWithKindnessRecords}</p>
+  return `
+    <div class="summary-box summary-box-v2">
+      <div class="summary-hero-row">
+        <div>
+          <span class="summary-label">Student Status</span>
+          <strong class="student-status ${status.className}">${status.icon} ${status.label}</strong>
+        </div>
+        <div>
+          <span class="summary-label">Viewing</span>
+          <strong>${escapeHTML(getTermLabel())}</strong>
+        </div>
+      </div>
+
+      <div class="summary-metric-grid fee-breakdown">
+        <div><span>Total Records</span><b>${total}</b></div>
+        <div class="fee-text"><span>Cash to Pay</span><b>₱${totalFees}</b></div>
+        <div class="fee-text"><span>Paid</span><b>₱${paidFees}</b></div>
+        <div class="fee-text"><span>Unpaid</span><b>₱${unpaidFees}</b></div>
+        <div class="fee-text"><span>Waived</span><b>₱${waivedFees}</b></div>
+        <div><span>Paid w/ Kindness</span><b>${paidWithKindnessRecords}</b></div>
+      </div>
+
+      <div class="summary-alert-line ${alertDetails.active ? "needs-action" : ""}">
+        ${alertDetails.active ? "⚠️" : "🐨"} ${escapeHTML(alertText)}
+      </div>
+
+      <div class="summary-footnote">
+        Latest record: ${latestRecord ? `${escapeHTML(latestRecord.type)} • ${escapeHTML(formatDisplayDate(latestRecord.date) || latestRecord.date)}` : "No records yet"}
       </div>
     </div>
   `;
 }
 
-function buildViolationListHTML(student, filterValue = "all") {
+function populateViolationTypeFilters() {
+  const selects = [violationTypeFilter, modalViolationTypeFilter].filter(Boolean);
+
+  selects.forEach(select => {
+    const previous = select.value || "all";
+    select.innerHTML = `<option value="all">All Types</option>`;
+
+    [...violationFees]
+      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")))
+      .forEach(item => {
+        if (!item.name) return;
+        const option = document.createElement("option");
+        option.value = item.name;
+        option.textContent = item.name;
+        select.appendChild(option);
+      });
+
+    select.value = [...select.options].some(option => option.value === previous) ? previous : "all";
+  });
+}
+
+function getRecordFilterState(scope = "main") {
+  const isModal = scope === "modal";
+
+  return {
+    status: (isModal ? modalViolationFilter : violationFilter)?.value || "all",
+    type: (isModal ? modalViolationTypeFilter : violationTypeFilter)?.value || "all",
+    search: ((isModal ? modalRecordSearch : recordSearch)?.value || "").trim().toLowerCase(),
+    from: (isModal ? modalRecordDateFrom : recordDateFrom)?.value || "",
+    to: (isModal ? modalRecordDateTo : recordDateTo)?.value || ""
+  };
+}
+
+function clearRecordFilterFields(scope = "main") {
+  const isModal = scope === "modal";
+  const fields = {
+    status: isModal ? modalViolationFilter : violationFilter,
+    type: isModal ? modalViolationTypeFilter : violationTypeFilter,
+    search: isModal ? modalRecordSearch : recordSearch,
+    from: isModal ? modalRecordDateFrom : recordDateFrom,
+    to: isModal ? modalRecordDateTo : recordDateTo
+  };
+
+  if (fields.status) fields.status.value = "all";
+  if (fields.type) fields.type.value = "all";
+  if (fields.search) fields.search.value = "";
+  if (fields.from) fields.from.value = "";
+  if (fields.to) fields.to.value = "";
+}
+
+function copyMainRecordFiltersToModal() {
+  if (modalViolationFilter && violationFilter) modalViolationFilter.value = violationFilter.value;
+  if (modalViolationTypeFilter && violationTypeFilter) modalViolationTypeFilter.value = violationTypeFilter.value;
+  if (modalRecordSearch && recordSearch) modalRecordSearch.value = recordSearch.value;
+  if (modalRecordDateFrom && recordDateFrom) modalRecordDateFrom.value = recordDateFrom.value;
+  if (modalRecordDateTo && recordDateTo) modalRecordDateTo.value = recordDateTo.value;
+}
+
+function buildViolationSearchText(violation) {
+  return [
+    violation.type,
+    violation.status,
+    violation.date,
+    violation.actionTaken,
+    violation.reflection,
+    violation.followUpStatus,
+    violation.parentContacted,
+    violation.settlementType,
+    getEffectiveKindnessTask(violation),
+    getEffectiveKindnessStatus(violation),
+    violation.notes
+  ].join(" ").toLowerCase();
+}
+
+function recordMatchesFilters(violation, filters) {
+  const filterState = typeof filters === "string" ? { status: filters } : (filters || {});
+  const statusFilter = filterState.status || "all";
+  const typeFilter = filterState.type || "all";
+  const searchFilter = String(filterState.search || "").trim().toLowerCase();
+  const fromFilter = filterState.from || "";
+  const toFilter = filterState.to || "";
+
+  if (statusFilter !== "all" && getStatusFilterKey(violation.status) !== statusFilter) return false;
+  if (typeFilter !== "all" && violation.type !== typeFilter) return false;
+  if (searchFilter && !buildViolationSearchText(violation).includes(searchFilter)) return false;
+  if (fromFilter && String(violation.date || "") < fromFilter) return false;
+  if (toFilter && String(violation.date || "") > toFilter) return false;
+
+  return true;
+}
+
+function renderModalViolationList() {
+  if (!modalViolationList) return;
+  modalViolationList.innerHTML = buildViolationListHTML(selectedStudent, getRecordFilterState("modal"));
+}
+
+function buildViolationListHTML(student, filters = "all") {
   if (!student) return `<p class="empty-message">Choose a student to view records. 🐨</p>`;
 
-  let data = [...getVisibleViolations(student)];
+  const allRecords = [...getVisibleViolations(student)]
+    .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
 
-  data.sort((a, b) => new Date(b.date) - new Date(a.date));
+  const filteredRecords = allRecords.filter(record => recordMatchesFilters(record, filters));
+  const filterState = typeof filters === "string" ? { status: filters } : (filters || {});
+  const hasActiveFilters = Boolean(
+    (filterState.status && filterState.status !== "all") ||
+    (filterState.type && filterState.type !== "all") ||
+    filterState.search ||
+    filterState.from ||
+    filterState.to
+  );
 
-  if (filterValue !== "all") {
-    data = data.filter(v => getStatusFilterKey(v.status) === filterValue);
+  if (filteredRecords.length === 0) {
+    return `
+      <div class="record-result-meta">Showing 0 of ${allRecords.length} record(s)</div>
+      <p class="empty-message">${hasActiveFilters ? "No records match the selected filters." : "No records found."} 🐨</p>
+    `;
   }
 
-  if (data.length === 0) {
-    return `<p class="empty-message">No records found. 🐨</p>`;
-  }
-
-  return data.map(v => `
+  const recordsHTML = filteredRecords.map(v => `
     <div class="violation-item">
-      <strong>${v.type}</strong>
-      <small>${v.date}</small>
+      <div class="violation-item-head">
+        <strong>${escapeHTML(v.type)}</strong>
+        <span class="status ${getStatusClass(v.status)}">${escapeHTML(v.status)}</span>
+      </div>
+      <small>${escapeHTML(formatDisplayDate(v.date) || v.date || "No date")}</small>
       <div class="fee-text">Fee: ${getFeeDisplay(v)}</div>
-      <div class="status ${getStatusClass(v.status)}">${v.status}</div>
-      ${v.actionTaken ? `<small>Action Taken: ${v.actionTaken}</small>` : ""}
-      ${v.reflection ? `<small>Reflection / Commitment: ${v.reflection}</small>` : ""}
-      ${(v.followUpDate || v.followUpStatus) ? `<small>Follow-up: ${v.followUpStatus || "Pending"}${v.followUpDate ? ` • ${v.followUpDate}` : ""}</small>` : ""}
+      ${v.actionTaken ? `<small>Action Taken: ${escapeHTML(v.actionTaken)}</small>` : ""}
+      ${v.reflection ? `<small>Reflection / Commitment: ${escapeHTML(v.reflection)}</small>` : ""}
+      ${(v.followUpDate || v.followUpStatus) ? `<small>Follow-up: ${escapeHTML(v.followUpStatus || "Pending")}${v.followUpDate ? ` • ${escapeHTML(formatDisplayDate(v.followUpDate) || v.followUpDate)}` : ""}</small>` : ""}
       ${v.parentContacted === "Yes" ? `<small>Parent Contacted: Yes</small>` : ""}
-      ${v.settlementType ? `<small>Settlement: ${v.settlementType}</small>` : ""}
+      ${v.settlementType ? `<small>Settlement: ${escapeHTML(v.settlementType)}</small>` : ""}
       ${getEffectiveKindnessTask(v) ? `<small class="kindness-line">Kindness Alternative Payment: ${escapeHTML(getEffectiveKindnessTask(v))} • ${escapeHTML(getEffectiveKindnessStatus(v))}${getEffectiveKindnessCompletedDate(v) ? ` • ${escapeHTML(formatDisplayDate(getEffectiveKindnessCompletedDate(v)))}` : ""}</small>` : ""}
-      ${v.notes ? `<small>Notes: ${v.notes}</small>` : ""}
+      ${v.notes ? `<small>Notes: ${escapeHTML(v.notes)}</small>` : ""}
 
       <div class="violation-actions">
-        <button type="button" onclick="editViolation('${v.recordId}')">Edit</button>
-        <button type="button" onclick="deleteViolation('${v.recordId}')">Delete</button>
+        <button type="button" onclick="editViolation('${escapeHTML(v.recordId)}')">Edit</button>
+        <button type="button" onclick="deleteViolation('${escapeHTML(v.recordId)}')">Delete</button>
       </div>
     </div>
   `).join("");
-}
 
+  return `
+    <div class="record-result-meta">Showing ${filteredRecords.length} of ${allRecords.length} record(s)</div>
+    ${recordsHTML}
+  `;
+}
 
 function buildStudentTimelineHTML(student) {
   if (!student) return `<p class="empty-message">Choose a student to view timeline. 🐨</p>`;
@@ -3679,9 +3852,10 @@ function renderStudentTimeline() {
 }
 
 function renderViolationList() {
+  if (!violationList) return;
   violationList.innerHTML = buildViolationListHTML(
     selectedStudent,
-    violationFilter ? violationFilter.value : "all"
+    getRecordFilterState("main")
   );
 }
 
@@ -3696,20 +3870,12 @@ function openStudentDetailsModal() {
     modalStudentSummary.innerHTML = buildStudentSummaryHTML(selectedStudent);
   }
 
-  if (modalViolationFilter) {
-    modalViolationFilter.value = violationFilter ? violationFilter.value : "all";
-  }
+  copyMainRecordFiltersToModal();
 
   if (modalViolationList) {
-    modalViolationList.innerHTML = buildViolationListHTML(
-      selectedStudent,
-      modalViolationFilter ? modalViolationFilter.value : "all"
-    );
+    renderModalViolationList();
   }
 
-  if (modalStudentTimeline) {
-    modalStudentTimeline.innerHTML = buildStudentTimelineHTML(selectedStudent);
-  }
 
   openModal(studentDetailsModal);
 }
@@ -5143,15 +5309,33 @@ if (actionTrackerSummary) {
   });
 }
 
-violationFilter.addEventListener("change", renderViolationList);
+[violationFilter, violationTypeFilter, recordDateFrom, recordDateTo].forEach(control => {
+  if (control) control.addEventListener("change", renderViolationList);
+});
 
-if (modalViolationFilter) {
-  modalViolationFilter.addEventListener("change", () => {
-    if (!modalViolationList) return;
-    modalViolationList.innerHTML = buildViolationListHTML(
-      selectedStudent,
-      modalViolationFilter.value
-    );
+if (recordSearch) {
+  recordSearch.addEventListener("input", renderViolationList);
+}
+
+if (clearRecordFilters) {
+  clearRecordFilters.addEventListener("click", () => {
+    clearRecordFilterFields("main");
+    renderViolationList();
+  });
+}
+
+[modalViolationFilter, modalViolationTypeFilter, modalRecordDateFrom, modalRecordDateTo].forEach(control => {
+  if (control) control.addEventListener("change", renderModalViolationList);
+});
+
+if (modalRecordSearch) {
+  modalRecordSearch.addEventListener("input", renderModalViolationList);
+}
+
+if (modalClearRecordFilters) {
+  modalClearRecordFilters.addEventListener("click", () => {
+    clearRecordFilterFields("modal");
+    renderModalViolationList();
   });
 }
 
@@ -5185,6 +5369,9 @@ window.addEventListener("resize", () => {
 
   if (window.innerWidth > 650) {
     studentPanel.classList.add("students-open");
+    document.body.classList.remove("student-drawer-open");
+  } else if (!studentPanel.classList.contains("students-open")) {
+    document.body.classList.remove("student-drawer-open");
   }
 
   updateMobileStudentToggleLabel();
@@ -5192,8 +5379,9 @@ window.addEventListener("resize", () => {
 
 initializeMobileStudentPanel();
 
-studentSort.addEventListener("change", renderStudents);
-studentSearch.addEventListener("input", renderStudents);
+if (studentSort) studentSort.addEventListener("change", renderStudents);
+if (studentSearch) studentSearch.addEventListener("input", renderStudents);
+if (studentQuickFilter) studentQuickFilter.addEventListener("change", renderStudents);
 
 if (addStatus) {
   addStatus.addEventListener("change", () => {

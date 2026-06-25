@@ -11,7 +11,7 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=14" />
 </head>
 <body>
 
@@ -50,7 +50,10 @@
     <p class="bekind">#BeKind</p>
   </div>
 
-  <button id="feeToggle">Hide Fees</button>
+  <div class="header-actions">
+    <a id="handbookBtn" class="handbook-btn" href="handbook.html" target="_blank" rel="noopener">📘 Student Handbook</a>
+    <button id="feeToggle">Hide Fees</button>
+  </div>
 </header>
 
 
@@ -517,13 +520,30 @@
         autocomplete="off"
       />
 
-      <select id="studentSort">
-        <option value="az">Alphabetical A-Z</option>
-        <option value="boysGirls">Boys first, then Girls</option>
-        <option value="most">Most Violations</option>
-        <option value="newest">Newest Violation</option>
-        <option value="alerts">With Alerts</option>
-      </select>
+      <label class="control-label student-sort-label" for="studentSort">
+        Sort students
+        <select id="studentSort">
+          <option value="az">Alphabetical A-Z</option>
+          <option value="boysGirls">Boys first, then Girls</option>
+          <option value="most">Most Violations</option>
+          <option value="newest">Newest Violation</option>
+          <option value="alerts">With Alerts</option>
+        </select>
+      </label>
+
+      <label class="control-label student-filter-label" for="studentQuickFilter">
+        Filter students
+        <select id="studentQuickFilter">
+          <option value="all">All Students</option>
+          <option value="hasRecords">With Records</option>
+          <option value="noRecords">No Records</option>
+          <option value="alerts">Needs Guidance</option>
+          <option value="unpaid">With Unpaid Cash</option>
+          <option value="kindnessPending">Kindness Pending</option>
+        </select>
+      </label>
+
+      <div id="studentResultMeta" class="student-result-meta">Showing 0 students</div>
 
       <div id="studentList"></div>
     </div>
@@ -536,24 +556,46 @@
       🖨 Print Student Record
     </button>
 
-    <h3>Violation History</h3>
+    <div class="section-title-row violation-history-heading">
+      <div>
+        <h3>Violation History</h3>
+        <p class="section-helper-text">Search and filter the selected student's records.</p>
+      </div>
+    </div>
 
-    <select id="violationFilter">
-      <option value="all">All Violations</option>
-      <option value="paid">Paid</option>
-      <option value="paidwithkindness">Paid with Kindness</option>
-      <option value="unpaid">Unpaid</option>
-      <option value="waived">Waived</option>
-    </select>
+    <details class="filter-drawer record-filter-drawer" id="recordFilterDrawer">
+      <summary>🔎 Search / Filter Records</summary>
+      <div class="record-filter-panel" aria-label="Violation history filters">
+        <input type="text" id="recordSearch" placeholder="Search records, notes, action..." autocomplete="off" />
+
+        <select id="violationTypeFilter">
+          <option value="all">All Types</option>
+        </select>
+
+        <select id="violationFilter">
+          <option value="all">All Status</option>
+          <option value="paid">Paid</option>
+          <option value="paidwithkindness">Paid with Kindness</option>
+          <option value="unpaid">Unpaid</option>
+          <option value="waived">Waived</option>
+        </select>
+
+        <label>From
+          <input type="date" id="recordDateFrom" />
+        </label>
+
+        <label>To
+          <input type="date" id="recordDateTo" />
+        </label>
+
+        <button type="button" id="clearRecordFilters" class="filter-clear-btn">Clear</button>
+      </div>
+    </details>
 
     <div id="violationList">
       <p class="empty-message">Choose a student to view records. 🐨</p>
     </div>
 
-    <h3>Student Progress Timeline</h3>
-    <div id="studentTimeline" class="student-timeline">
-      <p class="empty-message">Choose a student to view timeline. 🐨</p>
-    </div>
   </section>
 
   <aside class="fee-panel" id="feePanel">
@@ -650,22 +692,39 @@
 
     <h3>Violation History</h3>
 
-    <select id="modalViolationFilter">
-      <option value="all">All Violations</option>
-      <option value="paid">Paid</option>
-      <option value="paidwithkindness">Paid with Kindness</option>
-      <option value="unpaid">Unpaid</option>
-      <option value="waived">Waived</option>
-    </select>
+    <details class="filter-drawer modal-filter-drawer">
+      <summary>🔎 Search / Filter Records</summary>
+      <div class="record-filter-panel modal-record-filter-panel">
+        <input type="text" id="modalRecordSearch" placeholder="Search records..." autocomplete="off" />
+
+        <select id="modalViolationTypeFilter">
+          <option value="all">All Types</option>
+        </select>
+
+        <select id="modalViolationFilter">
+          <option value="all">All Status</option>
+          <option value="paid">Paid</option>
+          <option value="paidwithkindness">Paid with Kindness</option>
+          <option value="unpaid">Unpaid</option>
+          <option value="waived">Waived</option>
+        </select>
+
+        <label>From
+          <input type="date" id="modalRecordDateFrom" />
+        </label>
+
+        <label>To
+          <input type="date" id="modalRecordDateTo" />
+        </label>
+
+        <button type="button" id="modalClearRecordFilters" class="filter-clear-btn">Clear</button>
+      </div>
+    </details>
 
     <div id="modalViolationList">
       <p class="empty-message">No records found.</p>
     </div>
 
-    <h3>Student Progress Timeline</h3>
-    <div id="modalStudentTimeline" class="student-timeline">
-      <p class="empty-message">No timeline yet.</p>
-    </div>
   </div>
 </div>
 
@@ -917,8 +976,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
-<script src="firebase-auth-optional.js"></script>
-<script src="firebase-adapter.js"></script>
-<script src="script.js"></script>
+<script src="firebase-auth-optional.js?v=12"></script>
+<script src="firebase-adapter.js?v=12"></script>
+<script src="script.js?v=13"></script>
 </body>
 </html>

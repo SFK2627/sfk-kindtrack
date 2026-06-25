@@ -34,6 +34,12 @@
       "short_name": "Records",
       "description": "Open SFK KindTrack student records.",
       "url": "./index.html#records"
+    },
+    {
+      "name": "Student Handbook",
+      "short_name": "Handbook",
+      "description": "Open the SFK Student Handbook PDF.",
+      "url": "./handbook.html"
     }
   ]
 }

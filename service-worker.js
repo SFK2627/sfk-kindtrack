@@ -1,7 +1,8 @@
-const CACHE_NAME = 'sfk-kindtrack-pwa-v11-firebase-admin-login';
+const CACHE_NAME = 'sfk-kindtrack-phone-student-drawer-v1';
 const APP_SHELL = [
   './',
   './index.html',
+  './handbook.html',
   './style.css',
   './firebase-config.js',
   './firebase-auth-optional.js',
@@ -31,6 +32,11 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const requestUrl = new URL(event.request.url);
+
+  // Do not pin handbook PDFs in the app shell cache. The official copy may be replaced anytime.
+  if (requestUrl.pathname.toLowerCase().endsWith('.pdf')) {
+    return;
+  }
 
   // Always use the network for API requests and form posts.
   if (
