@@ -157,6 +157,7 @@ const bulkStudentList = document.getElementById("bulkStudentList");
 const bulkSelectedCount = document.getElementById("bulkSelectedCount");
 const selectVisibleStudentsBtn = document.getElementById("selectVisibleStudentsBtn");
 const clearBulkStudentsBtn = document.getElementById("clearBulkStudentsBtn");
+const bulkSaveSelectedBtn = document.getElementById("bulkSaveSelectedBtn");
 const addViolationSubmitBtn = document.getElementById("addViolationSubmitBtn");
 const addViolationType = document.getElementById("addViolationType");
 const addStatus = document.getElementById("addStatus");
@@ -4147,24 +4148,24 @@ function updateBulkSelectedCount() {
 }
 
 function updateAddViolationSubmitButton(isSaving = false) {
-  if (!addViolationSubmitBtn) return;
-
   const selectedCount = bulkSelectedStudentIds.size;
-  addViolationSubmitBtn.disabled = Boolean(isSaving);
-  addViolationSubmitBtn.setAttribute("aria-busy", isSaving ? "true" : "false");
+  const buttonLabel = selectedCount > 0
+    ? `Record Violation for ${selectedCount} Student${selectedCount === 1 ? "" : "s"}`
+    : "Select Students to Save";
 
-  if (isSaving) {
-    addViolationSubmitBtn.textContent = guideBulkMode && selectedCount > 1
-      ? `Saving for ${selectedCount} students...`
-      : "Saving...";
-    return;
+  if (bulkSaveSelectedBtn) {
+    bulkSaveSelectedBtn.disabled = Boolean(isSaving) || selectedCount === 0;
+    bulkSaveSelectedBtn.setAttribute("aria-busy", isSaving ? "true" : "false");
+    bulkSaveSelectedBtn.textContent = isSaving
+      ? `Saving ${selectedCount} Student${selectedCount === 1 ? "" : "s"}...`
+      : buttonLabel;
   }
 
-  addViolationSubmitBtn.textContent = guideBulkMode
-    ? selectedCount > 0
-      ? `Save Violation for ${selectedCount} Student${selectedCount === 1 ? "" : "s"}`
-      : "Select Students to Save"
-    : "Save Violation";
+  if (!addViolationSubmitBtn) return;
+
+  addViolationSubmitBtn.disabled = Boolean(isSaving);
+  addViolationSubmitBtn.setAttribute("aria-busy", isSaving ? "true" : "false");
+  addViolationSubmitBtn.textContent = isSaving ? "Saving..." : "Save Violation";
 }
 
 function renderBulkStudentPicker() {
@@ -4209,6 +4210,7 @@ function setGuideBulkMode(enabled) {
     addStudent.required = !guideBulkMode;
   }
   if (bulkStudentPicker) bulkStudentPicker.classList.toggle("hidden", !guideBulkMode);
+  if (addViolationSubmitBtn) addViolationSubmitBtn.classList.toggle("hidden", guideBulkMode);
 
   if (guideBulkMode) {
     renderBulkStudentPicker();
@@ -4254,9 +4256,38 @@ function applyKindnessSuggestionFromSelectedViolation() {
   syncKindnessTaskForForm(addSettlementType, addViolationType, addKindnessTask);
 }
 
+async function saveViolationRecords(payload, studentIds) {
+  const adapter = window.SFK_KINDTRACK_FIREBASE_ADAPTER;
+
+  if (adapter && typeof adapter.saveViolations === "function") {
+    return adapter.saveViolations(payload, studentIds);
+  }
+
+  if (studentIds.length > 1) {
+    const response = await fetch(API_URL, {
+      method: "POST",
+      body: JSON.stringify({
+        ...payload,
+        action: "bulkAddViolations",
+        studentIds
+      })
+    });
+    return response.json();
+  }
+
+  const response = await fetch(API_URL, {
+    method: "POST",
+    body: JSON.stringify({
+      ...payload,
+      action: "addViolation",
+      studentId: studentIds[0]
+    })
+  });
+  return response.json();
+}
+
 async function saveViolation(event) {
   event.preventDefault();
-  if (addViolationSubmitBtn && addViolationSubmitBtn.disabled) return;
 
   applyPaidWithKindnessStatus(addStatus, addSettlementType, addViolationType, addKindnessTask, addKindnessStatus, addKindnessCompletedDate, addAdvancedFields);
   syncKindnessCompletedDateForStatus(addKindnessStatus, addKindnessCompletedDate);
@@ -4321,47 +4352,7 @@ async function saveViolation(event) {
       ? `Saving for ${studentIds.length} students...`
       : "Saving violation...";
 
-    let result;
-
-    if (studentIds.length > 1) {
-      const bulkResponse = await fetch(API_URL, {
-        method: "POST",
-        body: JSON.stringify({
-          ...payload,
-          action: "bulkAddViolations",
-          studentIds
-        })
-      });
-
-      result = await bulkResponse.json();
-
-      // Older deployments can still save each record until the new Code.gs is deployed.
-      if (!result.success) {
-        const fallbackResults = [];
-        for (const studentId of studentIds) {
-          const response = await fetch(API_URL, {
-            method: "POST",
-            body: JSON.stringify({ ...payload, action: "addViolation", studentId })
-          });
-          fallbackResults.push(await response.json());
-        }
-
-        result = {
-          success: fallbackResults.every(item => item.success),
-          recordIds: fallbackResults.map(item => item.recordId || "")
-        };
-      }
-    } else {
-      const response = await fetch(API_URL, {
-        method: "POST",
-        body: JSON.stringify({
-          ...payload,
-          action: "addViolation",
-          studentId: studentIds[0]
-        })
-      });
-      result = await response.json();
-    }
+    const result = await saveViolationRecords(payload, studentIds);
 
     if (result.success) {
       const recordIds = Array.isArray(result.recordIds) ? result.recordIds : [result.recordId || ""];
@@ -4399,8 +4390,12 @@ async function saveViolation(event) {
       addForm.reset();
       setGuideBulkMode(false);
       populateAddForm();
-      await loadDataFromSheets();
       closeAddViolationModal();
+      renderAll();
+
+      loadDataFromSheets().catch(error => {
+        console.error("Violation refresh error:", error);
+      });
 
     } else {
       const errorMessage = result.message || "Unable to save violation.";
@@ -5520,6 +5515,25 @@ if (clearBulkStudentsBtn) {
   clearBulkStudentsBtn.addEventListener("click", () => {
     bulkSelectedStudentIds.clear();
     renderBulkStudentPicker();
+  });
+}
+
+if (bulkSaveSelectedBtn && addForm) {
+  bulkSaveSelectedBtn.addEventListener("click", event => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (!bulkSelectedStudentIds.size) {
+      updateBulkSelectedCount();
+      showToast("Select at least one student.");
+      return;
+    }
+
+    if (typeof addForm.requestSubmit === "function") {
+      addForm.requestSubmit();
+    } else {
+      addForm.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    }
   });
 }
 

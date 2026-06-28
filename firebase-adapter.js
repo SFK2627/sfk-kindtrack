@@ -441,6 +441,29 @@
     };
   }
 
+  async function saveViolationsDirect(data, selectedStudentIds) {
+    if (window.SFK_KINDTRACK_AUTH) {
+      const signedIn = await window.SFK_KINDTRACK_AUTH.ensureSignedIn();
+      if (!signedIn) {
+        return { success: false, message: "Firebase admin login is required to save changes." };
+      }
+    }
+
+    const studentIds = Array.from(new Set((Array.isArray(selectedStudentIds) ? selectedStudentIds : [])
+      .map((studentId) => String(studentId || "").trim())
+      .filter(Boolean)));
+
+    if (!studentIds.length) {
+      return { success: false, message: "No students selected" };
+    }
+
+    if (studentIds.length === 1) {
+      return addViolation({ ...data, studentId: studentIds[0] });
+    }
+
+    return bulkAddViolations({ ...data, studentIds });
+  }
+
   async function editViolation(data) {
     const ref = await findDocByField(COLLECTIONS.violations, "RecordID", data.recordId);
     if (!ref) return { success: false, message: "Record not found" };
@@ -510,6 +533,7 @@
 
   window.SFK_KINDTRACK_FIREBASE_ADAPTER = {
     collections: COLLECTIONS,
-    loadAll: handleGet
+    loadAll: handleGet,
+    saveViolations: saveViolationsDirect
   };
 })();

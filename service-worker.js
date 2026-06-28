@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sfk-kindtrack-bulk-violation-fix-v2';
+const CACHE_NAME = 'sfk-kindtrack-direct-firestore-save-v4';
 const APP_SHELL = [
   './',
   './index.html',
