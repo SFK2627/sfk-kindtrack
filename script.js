@@ -4138,9 +4138,33 @@ function getVisibleBulkStudents() {
 }
 
 function updateBulkSelectedCount() {
-  if (!bulkSelectedCount) return;
   const count = bulkSelectedStudentIds.size;
-  bulkSelectedCount.textContent = `${count} student${count === 1 ? "" : "s"} selected`;
+  if (bulkSelectedCount) {
+    bulkSelectedCount.textContent = `${count} student${count === 1 ? "" : "s"} selected`;
+  }
+
+  updateAddViolationSubmitButton();
+}
+
+function updateAddViolationSubmitButton(isSaving = false) {
+  if (!addViolationSubmitBtn) return;
+
+  const selectedCount = bulkSelectedStudentIds.size;
+  addViolationSubmitBtn.disabled = Boolean(isSaving);
+  addViolationSubmitBtn.setAttribute("aria-busy", isSaving ? "true" : "false");
+
+  if (isSaving) {
+    addViolationSubmitBtn.textContent = guideBulkMode && selectedCount > 1
+      ? `Saving for ${selectedCount} students...`
+      : "Saving...";
+    return;
+  }
+
+  addViolationSubmitBtn.textContent = guideBulkMode
+    ? selectedCount > 0
+      ? `Save Violation for ${selectedCount} Student${selectedCount === 1 ? "" : "s"}`
+      : "Select Students to Save"
+    : "Save Violation";
 }
 
 function renderBulkStudentPicker() {
@@ -4185,11 +4209,12 @@ function setGuideBulkMode(enabled) {
     addStudent.required = !guideBulkMode;
   }
   if (bulkStudentPicker) bulkStudentPicker.classList.toggle("hidden", !guideBulkMode);
-  if (addViolationSubmitBtn) {
-    addViolationSubmitBtn.textContent = guideBulkMode ? "Save for Selected Students" : "Save Violation";
-  }
 
-  if (guideBulkMode) renderBulkStudentPicker();
+  if (guideBulkMode) {
+    renderBulkStudentPicker();
+  } else {
+    updateAddViolationSubmitButton();
+  }
 }
 
 function populateAddForm() {
@@ -4231,6 +4256,8 @@ function applyKindnessSuggestionFromSelectedViolation() {
 
 async function saveViolation(event) {
   event.preventDefault();
+  if (addViolationSubmitBtn && addViolationSubmitBtn.disabled) return;
+
   applyPaidWithKindnessStatus(addStatus, addSettlementType, addViolationType, addKindnessTask, addKindnessStatus, addKindnessCompletedDate, addAdvancedFields);
   syncKindnessCompletedDateForStatus(addKindnessStatus, addKindnessCompletedDate);
   syncKindnessTaskForForm(addSettlementType, addViolationType, addKindnessTask);
@@ -4246,6 +4273,26 @@ async function saveViolation(event) {
       addMessage.textContent = "Select at least one student.";
     }
     showToast("Select at least one student.");
+    return;
+  }
+
+  if (!addViolationType || !addViolationType.value) {
+    if (addMessage) {
+      addMessage.classList.remove("hidden");
+      addMessage.textContent = "Select a violation type.";
+    }
+    showToast("Select a violation type.");
+    if (addViolationType) addViolationType.focus();
+    return;
+  }
+
+  if (!addDate || !addDate.value) {
+    if (addMessage) {
+      addMessage.classList.remove("hidden");
+      addMessage.textContent = "Select the violation date.";
+    }
+    showToast("Select the violation date.");
+    if (addDate) addDate.focus();
     return;
   }
 
@@ -4268,6 +4315,7 @@ async function saveViolation(event) {
   };
 
   try {
+    updateAddViolationSubmitButton(true);
     addMessage.classList.remove("hidden");
     addMessage.textContent = studentIds.length > 1
       ? `Saving for ${studentIds.length} students...`
@@ -4355,14 +4403,18 @@ async function saveViolation(event) {
       closeAddViolationModal();
 
     } else {
-      addMessage.textContent = "❌ Unable to save violation.";
-      showToast("❌ Unable to save violation.");
+      const errorMessage = result.message || "Unable to save violation.";
+      addMessage.textContent = errorMessage;
+      showToast(errorMessage);
     }
   } catch (error) {
     console.error(error);
     addMessage.classList.remove("hidden");
-    addMessage.textContent = "❌ Connection error.";
-    showToast("❌ Connection error.");
+    const errorMessage = error && error.message ? error.message : "Connection error.";
+    addMessage.textContent = errorMessage;
+    showToast(errorMessage);
+  } finally {
+    updateAddViolationSubmitButton(false);
   }
 }
 

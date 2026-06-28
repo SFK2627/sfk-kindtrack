@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sfk-kindtrack-phone-student-drawer-v1';
+const CACHE_NAME = 'sfk-kindtrack-bulk-violation-fix-v2';
 const APP_SHELL = [
   './',
   './index.html',

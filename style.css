@@ -966,6 +966,11 @@ select {
   cursor: pointer;
 }
 
+.add-form button:disabled {
+  cursor: wait;
+  opacity: .68;
+}
+
 .hidden {
   display: none;
 }

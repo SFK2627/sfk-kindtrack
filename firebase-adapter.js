@@ -406,7 +406,7 @@
 
   async function addViolation(data) {
     const db = getFirestore();
-    const recordId = `REC-${Date.now()}`;
+    const recordId = `REC-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const row = buildViolationRow(data, recordId, data.studentId);
     row.__createdAt = serverTimestamp();
     await db.collection(COLLECTIONS.violations).doc(normalizeDocId(recordId)).set(row);
@@ -423,7 +423,8 @@
 
     const batch = db.batch();
     const timestamp = Date.now();
-    const recordIds = studentIds.map((studentId, index) => `REC-${timestamp}-${index + 1}`);
+    const requestKey = Math.random().toString(36).slice(2, 8);
+    const recordIds = studentIds.map((studentId, index) => `REC-${timestamp}-${requestKey}-${index + 1}`);
 
     studentIds.forEach((studentId, index) => {
       const row = buildViolationRow(data, recordIds[index], studentId);
